@@ -1,0 +1,31 @@
+---
+description: CarePilot tool authorization, least privilege, injection hardening, secret hygiene, and audit requirements
+alwaysApply: true
+---
+
+# Security
+
+Design as if fictional chart data were sensitive. Fail closed.
+
+## Tool authorization
+
+Every tool call goes through the gateway: schema-validate → authorize(actor, agent identity, tool, args, patient scope) → policy → execute or enqueue. Server-side only. Agent identity cannot mint privileges or expand its allowlist.
+
+Least privilege: each agent gets the smallest tool set it needs. Safety review has no mutate tools. Patient scope is bound at run creation; a model-supplied `patient_id` may only match that scope.
+
+```text
+# BAD — execute(tool, **model_args)
+# GOOD — gateway.bind_scope(run).authorize(tool, model_args) → deny event or scoped execute
+```
+
+## Prompt injection and data access
+
+Transcripts, comments, and KB passages are untrusted data, never instructions. In-loop execution of consequential tools is forbidden so injection cannot "just do it." Retrieval returns purpose-limited, redacted views — no raw store handles, no "summarize everything" escape hatch, no live web tool in v1.
+
+## Secrets and logs
+
+Never place API keys, credentials, or connection strings in prompts, tool observations, traces, or eval fixtures. Treat demo demographics as sensitive in logs. Redact before the cognitive plane sees operational config.
+
+## Audit of consequential actions
+
+Only the control plane writes audit events (append-only). The model must not write or rewrite the audit log. Record allows, denials, schema failures, policy blocks, safety outcomes, approvals, rejections, and executions. Approval binds a content hash of the exact `PendingAction`; execution refuses mismatches. Post-approval tool calls require a new run.

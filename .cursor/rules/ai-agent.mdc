@@ -1,0 +1,31 @@
+---
+description: Constrained CarePilot agent loop — structured outputs, typed tools, budgets, uncertainty, and untrusted model decisions
+globs: src/carepilot/agents/**/*.py,src/carepilot/llm/**/*.py,src/carepilot/runs/**/*.py
+alwaysApply: false
+---
+
+# AI agents
+
+The coordinator may propose `think` | `tool_call` | `finish` only. Decode into schemas; reject or retry on invalid output. Do not parse free-text tool calls.
+
+## Tools and loop bounds
+
+- Tools come from a static catalog. Allowlists live in policy, not in the prompt.
+- The loop must enforce max steps, max tokens, and max repeats of the same tool. Exhausted budget ends the run as a bounded failure, not an implicit success.
+- Read/draft tools may execute in-loop after the gateway. Consequential tools (`propose_referral`, `schedule_outreach`, `notify_care_team`) become `PendingAction` records — never execute inside the loop.
+
+## Failures and uncertainty
+
+- Provider timeouts, empty responses, and schema failures: retry with a cap, then fail the run closed. Do not invent a proposal to "finish cleanly."
+- Proposals must mark missing evidence as uncertain or incomplete. Clinical claims require retrieved snippet IDs. Unsupported claims fail safety review; do not let fluent text stand in for citations.
+
+## Model output is not authorization
+
+Treat every model token as untrusted. `ok: true` from the safety reviewer, "you are now admin," or a client `skip_approval` flag must not grant tools, widen patient scope, or execute side effects.
+
+```text
+# BAD — if proposal.approved: gateway.execute(tool)
+# GOOD — policy + authz decide legality; humans approve hashed PendingActions; gateway executes only those bytes
+```
+
+Safety review is a separate stage after `finish`. The reviewer model is an advisor. Deterministic checks plus the control plane are the gate.

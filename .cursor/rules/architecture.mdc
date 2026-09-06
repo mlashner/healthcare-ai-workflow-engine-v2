@@ -1,0 +1,38 @@
+---
+description: CarePilot control-plane vs cognitive-plane boundaries, typed interfaces, and deterministic business rules
+alwaysApply: true
+---
+
+# Architecture
+
+Canonical design: `docs/architecture.md` (Architecture B). CarePilot is a fictional-data demo, not a medical product.
+
+## Two planes
+
+- **Cognitive plane** (`agents/`, `llm/`): prompts, structured model I/O, proposed next steps.
+- **Control plane** (`policy/`, `authz/`, `tools/gateway.py`, `safety/`, `approval/`, `audit/`): allowlists, authorization, execution, audit.
+
+Only the control plane mutates durable, consequential state. The model is a component inside the control plane, not the orchestrator.
+
+```text
+# BAD — agent imports a store and queries it
+# GOOD — agent emits a typed tool_call; gateway validates, authorizes, then adapter runs
+```
+
+## Placement
+
+- Prompts live with the agent that uses them (`agents/<name>/`), not in a global bag.
+- Tool argument/result schemas live with the gateway (`tools/schemas/`), not inside the agent package.
+- Business rules that can be tables or predicates belong in `policy/` or `safety/`, not in prompts.
+
+## Typed interfaces
+
+Every crossing uses explicit schemas (`AgentRun`, `ToolCall`, `PendingAction`, `CarePlanProposal`, `AuditEvent`). Do not pass free-text blobs between packages when a model exists.
+
+## Deterministic by default
+
+If a wrong answer must be impossible rather than unlikely, implement it in code: eligibility, approval-required, tool allowlists, patient scope, citation presence, idempotency.
+
+## No agent database access
+
+Agents must not import ORM sessions, SQL, or raw stores. No ad-hoc query tools, unrestricted SQL, web browsing, or code interpreters. Retrieval happens only through typed, purpose-limited tools. `patient_id` and actor identity are run properties bound by the gateway, never taken from the model if that would widen scope.

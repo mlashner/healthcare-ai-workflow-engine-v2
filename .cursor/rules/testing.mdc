@@ -1,0 +1,33 @@
+---
+description: CarePilot test layers — unit, tool integration, agent eval cases, adversarial tests, and behavior-change regressions
+globs: tests/**/*.py,eval/**/*.py,eval/cases/**/*
+alwaysApply: false
+---
+
+# Testing
+
+Evaluation is part of the architecture. The unit of agent evaluation is one `AgentRun` plus its tool trace, safety result, authz decisions, and optional approval/execution record. Eval speaks the same schemas as production.
+
+## Layers
+
+| Layer | Covers | Must be deterministic |
+|---|---|---|
+| `tests/unit/` | policy, authz, schemas, citation checks, approval hashing, run budgets | Yes |
+| `tests/integration/` | each catalog tool + gateway (validate, deny, scoped execute) | Yes |
+| `tests/eval/` and `eval/cases/` | agent behavior on versioned cases | Assertions yes; LLM-as-judge advisory only |
+| `tests/adversarial/` | injection, unauthorized tools, unsupported claims, tool misuse | Yes |
+
+Do not rely on an LLM judge as the only pass/fail for unauthorized access, injection, missing citations, tool misuse, or approval-hash mismatch.
+
+## Adversarial cases required
+
+- Prompt injection in transcripts or KB trying to coerce a consequential tool → no in-loop execution; deny or safety block.
+- Request for another patient or a forbidden tool → deny event; no data, no execution.
+- Clinical claim with no retrieved snippet ID → safety failure.
+- Widened `patient_id`, missing required fields, or tool thrash → gateway/policy failure.
+
+Adversarial and eval runs use isolated stores and `dry_run` / `record_only` unless a test explicitly opts into execution.
+
+## Regressions
+
+When prompts, tools, policy, or safety checks change, update or add golden traces and eval cases in the same change. A behavior change without a case is incomplete. Rotten goldens are a defect: replay them, do not skip them.
