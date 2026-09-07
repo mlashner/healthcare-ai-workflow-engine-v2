@@ -10,7 +10,6 @@ Open only the run tagged **interview demo** (`run_fictional_ava_review`). Ignore
 
 ```bash
 cp .env.example .env          # first time only
-docker compose up -d
 npm install
 npm run db:migrate
 npm run db:seed
@@ -18,9 +17,11 @@ npm run eval
 npm run dev
 ```
 
+Postgres must already be up with the `vector` extension and `DATABASE_URL` from `.env` (`postgres://carepilot:carepilot@localhost:5432/carepilot`). Docker is optional: `docker compose up -d` only if you use the Compose image and `docker` is on your PATH. Homebrew Postgres on this machine is enough.
+
 - App: [http://localhost:3000](http://localhost:3000)
 - Health: [http://localhost:3000/api/health](http://localhost:3000/api/health) should report `"database":"ok"`
-- If **Approve** is already used: `npm run db:seed` again. For a full reset: `docker compose down -v`, then migrate, seed, and eval as above.
+- If **Approve** is already used: `npm run db:seed` again. For a full reset of a Compose volume: `docker compose down -v`, then migrate, seed, and eval. On Homebrew Postgres, drop and recreate the `carepilot` database instead.
 
 ## Walkthrough
 

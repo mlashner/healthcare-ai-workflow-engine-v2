@@ -1,6 +1,11 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+
 import { afterEach, describe, expect, it } from "vitest";
 
 import { loadEnv, resetEnvCache } from "@/lib/env";
+import { applyDotenvFile } from "@/lib/load-dotenv";
 
 afterEach(() => {
   resetEnvCache();
@@ -38,5 +43,41 @@ describe("loadEnv", () => {
         DATABASE_URL: "mysql://localhost/carepilot",
       }),
     ).toThrow(/postgres/);
+  });
+});
+
+describe("applyDotenvFile", () => {
+  const previousUrl = process.env.DATABASE_URL;
+
+  afterEach(() => {
+    if (previousUrl === undefined) {
+      delete process.env.DATABASE_URL;
+    } else {
+      process.env.DATABASE_URL = previousUrl;
+    }
+    delete process.env.CAREPILOT_DOTENV_PROBE;
+  });
+
+  it("fills unset keys from the file and does not override existing ones", () => {
+    const directory = join(tmpdir(), `carepilot-dotenv-${Date.now()}`);
+    mkdirSync(directory, { recursive: true });
+    const filePath = join(directory, ".env");
+    writeFileSync(
+      filePath,
+      [
+        "# comment",
+        "DATABASE_URL=postgres://from-file/carepilot",
+        "CAREPILOT_DOTENV_PROBE=from-file",
+        "",
+      ].join("\n"),
+    );
+
+    process.env.DATABASE_URL = "postgres://already-set/carepilot";
+    delete process.env.CAREPILOT_DOTENV_PROBE;
+
+    applyDotenvFile(filePath);
+
+    expect(process.env.DATABASE_URL).toBe("postgres://already-set/carepilot");
+    expect(process.env.CAREPILOT_DOTENV_PROBE).toBe("from-file");
   });
 });

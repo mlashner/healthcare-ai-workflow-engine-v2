@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { applyDotenvFile } from "./load-dotenv";
+
 const logLevels = ["debug", "info", "warn", "error"] as const;
 
 export const envSchema = z.object({
@@ -31,6 +33,7 @@ let cached: Env | undefined;
 
 export function getEnv(): Env {
   if (!cached) {
+    applyDotenvFile();
     cached = loadEnv();
   }
   return cached;
