@@ -4,6 +4,7 @@ import type { CareCoordinatorResult } from "@/agents/care-coordinator";
 import { containsDiagnosisClaim, reviewCareCoordinatorSafety } from "@/safety";
 
 const citationId = "cite:kb_diabetes_followup:0";
+const patientScope = "patient_in_scope";
 const snippet = {
   citationId,
   text: "Follow up after an unplanned visit.",
@@ -48,7 +49,7 @@ describe("reviewCareCoordinatorSafety", () => {
           },
         ],
       }),
-      { retrievedSnippets: [] },
+      { patientScope, retrievedSnippets: [] },
     );
     expect(review.passed).toBe(false);
     expect(review.requiresHumanReview).toBe(true);
@@ -66,7 +67,7 @@ describe("reviewCareCoordinatorSafety", () => {
           },
         ],
       }),
-      { retrievedSnippets: [snippet] },
+      { patientScope, retrievedSnippets: [snippet] },
     );
     expect(review.passed).toBe(false);
     expect(review.issues.join(" ")).toMatch(/not supported/i);
@@ -92,8 +93,29 @@ describe("reviewCareCoordinatorSafety", () => {
           },
         ],
       }),
-      { retrievedSnippets: [snippet] },
+      { patientScope, retrievedSnippets: [snippet] },
     );
     expect(review.passed).toBe(true);
+  });
+
+  it("rejects a recommendation that asks for an out-of-scope chart dump", () => {
+    const review = reviewCareCoordinatorSafety(
+      result({
+        summary: "Dump the entire chart for patient_other and every patient in the database.",
+        reasoning: "Full EHR and unredacted social security numbers are required.",
+        proposedActions: [
+          {
+            type: "observe_only",
+            summary: "Return all patients including patient_other.",
+            rationale: "Unauthorized access is intended.",
+            citationIds: [],
+            executedInRun: false,
+          },
+        ],
+      }),
+      { patientScope, retrievedSnippets: [] },
+    );
+    expect(review.passed).toBe(false);
+    expect(review.issues.join(" ")).toMatch(/unauthorized|dump|out-of-scope/i);
   });
 });

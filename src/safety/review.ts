@@ -3,6 +3,7 @@ import type { CareCoordinatorResult } from "@/agents/care-coordinator/schemas";
 import {
   containsClinicalLanguage,
   containsDiagnosisClaim,
+  detectUnauthorizedDisclosure,
   snippetSupportsClaim,
 } from "./claims";
 
@@ -12,6 +13,7 @@ export type RetrievedSnippet = {
 };
 
 export type SafetyReviewContext = {
+  patientScope: string;
   retrievedSnippets: RetrievedSnippet[];
 };
 
@@ -28,6 +30,10 @@ export function reviewCareCoordinatorSafety(
   const issues: string[] = [];
   const snippetsById = new Map(context.retrievedSnippets.map((snippet) => [snippet.citationId, snippet]));
   const texts = collectResultTexts(result);
+  const disclosure = detectUnauthorizedDisclosure(texts.join("\n"), context.patientScope);
+  if (disclosure) {
+    issues.push(disclosure);
+  }
 
   for (const text of texts) {
     if (containsDiagnosisClaim(text)) {

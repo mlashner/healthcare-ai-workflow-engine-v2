@@ -57,7 +57,7 @@ export type AgentDefinition<TResult> = {
   ) => ResultRefinement<TResult>;
   safetyReview?: (
     result: TResult,
-    context: { retrievedSnippets: RetrievedSnippet[] },
+    context: { patientScope: string; retrievedSnippets: RetrievedSnippet[] },
   ) => SafetyGate;
 };
 
@@ -308,7 +308,10 @@ async function executeLoop<TResult>(
     }
 
     const safety = deps.definition.safetyReview
-      ? deps.definition.safetyReview(refined.result, { retrievedSnippets })
+      ? deps.definition.safetyReview(refined.result, {
+          patientScope: request.patientId,
+          retrievedSnippets,
+        })
       : { passed: true, issues: [] };
 
     await recordEvent(deps.events, {

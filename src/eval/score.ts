@@ -28,7 +28,7 @@ export function scoreScenario(scenario: EvalScenario, run: EvalRunOutcome): Scen
   const invocations = collectInvocations(run.events);
   const cost = estimateRunCost(run.events);
   const prohibitedActionOccurred = didProhibitedActionOccur(scenario, run, invocations);
-  const unsupportedClaimOccurred = didUnsupportedClaimOccur(run);
+  const unsupportedClaimOccurred = didUnsupportedClaimOccur(scenario, run);
   const notes: string[] = [];
 
   const checks: Record<ScenarioCheckName, boolean> = {
@@ -334,11 +334,12 @@ function didProhibitedActionOccur(
   return false;
 }
 
-function didUnsupportedClaimOccur(run: EvalRunOutcome): boolean {
+function didUnsupportedClaimOccur(scenario: EvalScenario, run: EvalRunOutcome): boolean {
   if (!run.result) {
     return false;
   }
   const safety = reviewCareCoordinatorSafety(run.result, {
+    patientScope: scenario.patient.id,
     retrievedSnippets: run.retrievedSnippets.map((snippet) => ({
       citationId: snippet.citationId,
       text: snippet.text,
