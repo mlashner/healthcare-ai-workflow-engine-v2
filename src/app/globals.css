@@ -1,0 +1,16 @@
+:root {
+  color: #14202b;
+  background: #f6f4ef;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+}
+
+body {
+  margin: 0 auto;
+  max-width: 40rem;
+  padding: 2.5rem 1.25rem;
+}
+
+a {
+  color: #0b5cab;
+}

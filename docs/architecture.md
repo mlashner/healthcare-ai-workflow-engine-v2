@@ -6,6 +6,8 @@
 
 CarePilot exists to demonstrate production-oriented judgment around AI agents: typed tools, deterministic authorization, human approval, auditability, traces, and evaluation. Generating fluent clinical-sounding text is not the product.
 
+**Implementation stack:** TypeScript, Next.js (App Router), PostgreSQL, Drizzle ORM, and Zod. The Python tree in §10 remains a conceptual map of control-plane packages; application code lives under `src/` with HTTP adapters in `src/app/`. The invariants in this document still apply.
+
 ---
 
 ## 1. Problem and design intent

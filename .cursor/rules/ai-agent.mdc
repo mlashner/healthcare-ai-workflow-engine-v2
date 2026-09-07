@@ -1,6 +1,6 @@
 ---
 description: Constrained CarePilot agent loop — structured outputs, typed tools, budgets, uncertainty, and untrusted model decisions
-globs: src/carepilot/agents/**/*.py,src/carepilot/llm/**/*.py,src/carepilot/runs/**/*.py
+globs: src/agents/**/*.{ts,tsx},src/llm/**/*.{ts,tsx},src/runs/**/*.{ts,tsx}
 alwaysApply: false
 ---
 

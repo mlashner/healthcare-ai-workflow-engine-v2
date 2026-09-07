@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: carepilot
+      POSTGRES_PASSWORD: carepilot
+      POSTGRES_DB: carepilot
+    ports:
+      - "5432:5432"
+    volumes:
+      - carepilot_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U carepilot -d carepilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  carepilot_pg:

@@ -9,8 +9,8 @@ Canonical design: `docs/architecture.md` (Architecture B). CarePilot is a fictio
 
 ## Two planes
 
-- **Cognitive plane** (`agents/`, `llm/`): prompts, structured model I/O, proposed next steps.
-- **Control plane** (`policy/`, `authz/`, `tools/gateway.py`, `safety/`, `approval/`, `audit/`): allowlists, authorization, execution, audit.
+- **Cognitive plane** (`src/agents/`, `src/llm/`): prompts, structured model I/O, proposed next steps.
+- **Control plane** (`src/policy/`, `src/authz/`, `src/tools/gateway.ts`, `src/safety/`, `src/approval/`, `src/audit/`): allowlists, authorization, execution, audit.
 
 Only the control plane mutates durable, consequential state. The model is a component inside the control plane, not the orchestrator.
 

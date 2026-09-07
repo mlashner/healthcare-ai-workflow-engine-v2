@@ -1,0 +1,44 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { log, redact } from "@/lib/logger";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("redact", () => {
+  it("replaces sensitive keys and leaves other fields intact", () => {
+    expect(
+      redact({
+        patientId: "demo-001",
+        DATABASE_URL: "postgres://carepilot:carepilot@localhost:5432/carepilot",
+        apiKey: "abc",
+        nested: { authorization: "Bearer secret", ok: true },
+      }),
+    ).toEqual({
+      patientId: "demo-001",
+      DATABASE_URL: "[redacted]",
+      apiKey: "[redacted]",
+      nested: { authorization: "[redacted]", ok: true },
+    });
+  });
+});
+
+describe("log", () => {
+  it("writes a JSON line and redacts secrets in fields", () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+
+    log("info", "db.connect", {
+      host: "localhost",
+      password: "super-secret",
+    });
+
+    expect(info).toHaveBeenCalledTimes(1);
+    const payload = JSON.parse(String(info.mock.calls[0]?.[0]));
+    expect(payload.message).toBe("db.connect");
+    expect(payload.level).toBe("info");
+    expect(payload.host).toBe("localhost");
+    expect(payload.password).toBe("[redacted]");
+    expect(payload.ts).toEqual(expect.any(String));
+  });
+});

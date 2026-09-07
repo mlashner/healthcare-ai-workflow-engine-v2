@@ -1,6 +1,6 @@
 ---
 description: CarePilot test layers — unit, tool integration, agent eval cases, adversarial tests, and behavior-change regressions
-globs: tests/**/*.py,eval/**/*.py,eval/cases/**/*
+globs: tests/**/*.{ts,tsx},eval/**/*.{ts,tsx},eval/cases/**/*
 alwaysApply: false
 ---
 
