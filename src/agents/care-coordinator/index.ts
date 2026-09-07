@@ -1,5 +1,5 @@
 export { careCoordinatorSystemPrompt } from "./prompt";
-export { collectCitationIds, containsDiagnosisClaim, validateCareCoordinatorResult } from "./result";
+export { validateCareCoordinatorResult } from "./result";
 export { createCareCoordinatorRunner } from "./runner";
 export type { CareCoordinatorRunner } from "./runner";
 export {

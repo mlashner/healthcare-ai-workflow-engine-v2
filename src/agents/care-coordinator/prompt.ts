@@ -33,13 +33,13 @@ export const careCoordinatorSystemPrompt = [
   "Finish result fields:",
   "summary, identifiedConcerns, urgency, reasoning, evidence, proposedActions,",
   "requiresHumanReview, confidence (0-1), uncertainty { isUncertain, reasons }.",
+  "The control plane always sets requiresHumanReview to true.",
   "",
   "Evidence rules:",
   "- Mark retrieved snippets as kind=retrieved and include the tool citationId.",
   "- Mark your own interpretation as kind=inferred. Do not present inference as retrieved fact.",
-  "- Clinical claims in identifiedConcerns or retrieved evidence require citation IDs from searchClinicalKnowledge results in this run.",
-  "- If evidence is missing, thin, or conflicting, finish with uncertainty.isUncertain=true, low confidence, and requiresHumanReview=true.",
-  "- Do not finish with fluent clinical claims when you have not retrieved supporting snippets.",
+  "- Clinical claims in any finish field require citation IDs whose retrieved text supports the claim.",
+  "- If evidence is missing, thin, or conflicting, finish with uncertainty.isUncertain=true and low confidence.",
 ].join("\n");
 
 export function buildCareCoordinatorUserMessage(input: {

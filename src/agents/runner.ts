@@ -14,6 +14,7 @@ import {
 } from "@/runs/budgets";
 import type { EventStore, RunStore } from "@/runs/stores";
 import type { AgentFailureCode, AgentRunOutcome } from "@/runs/types";
+import type { RetrievedSnippet } from "@/safety";
 import type { ToolInvocationResult } from "@/tools/types";
 import type { z } from "zod";
 
@@ -34,6 +35,11 @@ export type ResultRefinement<TResult> =
   | { ok: true; result: TResult; notes?: string[] }
   | { ok: false; issues: string[] };
 
+export type SafetyGate = {
+  passed: boolean;
+  issues: string[];
+};
+
 export type AgentDefinition<TResult> = {
   name: AgentIdentity;
   systemPrompt: string;
@@ -41,11 +47,12 @@ export type AgentDefinition<TResult> = {
   schemaName: string;
   refineResult?: (
     result: TResult,
-    context: {
-      retrievedCitationIds: Set<string>;
-      successfulTools: string[];
-    },
+    context: { retrievedCitationIds: Set<string> },
   ) => ResultRefinement<TResult>;
+  safetyReview?: (
+    result: TResult,
+    context: { retrievedSnippets: RetrievedSnippet[] },
+  ) => SafetyGate;
 };
 
 export type AgentRunRequest = {
@@ -83,8 +90,7 @@ export function createAgentRunner<TResult>(deps: {
         { role: "user", content: request.userContent },
       ];
       const state = createBudgetState();
-      const retrievedCitationIds = new Set<string>();
-      const successfulTools: string[] = [];
+      const retrievedSnippets: RetrievedSnippet[] = [];
       let schemaRetries = 0;
       let providerRetries = 0;
 
@@ -205,10 +211,7 @@ export function createAgentRunner<TResult>(deps: {
 
             const observation = toObservation(invocation);
             if (invocation.ok) {
-              successfulTools.push(step.toolName);
-              for (const citationId of collectCitationIdsFrom(invocation.output)) {
-                retrievedCitationIds.add(citationId);
-              }
+              retrievedSnippets.push(...collectSnippets(invocation.output));
             }
 
             await recordEvent(deps.events, {
@@ -222,11 +225,9 @@ export function createAgentRunner<TResult>(deps: {
             continue;
           }
 
+          const retrievedCitationIds = new Set(retrievedSnippets.map((snippet) => snippet.citationId));
           const refined = deps.definition.refineResult
-            ? deps.definition.refineResult(step.result, {
-                retrievedCitationIds,
-                successfulTools,
-              })
+            ? deps.definition.refineResult(step.result, { retrievedCitationIds })
             : { ok: true as const, result: step.result, notes: [] };
 
           if (!refined.ok) {
@@ -238,17 +239,7 @@ export function createAgentRunner<TResult>(deps: {
             });
             if (schemaRetries < deps.budgets.maxSchemaRetries) {
               schemaRetries += 1;
-              messages.push({ role: "assistant", content: step });
-              messages.push({
-                role: "user",
-                content: {
-                  type: "control_error",
-                  code: "INVALID_RESULT",
-                  message:
-                    "The finish result was rejected by deterministic checks. Do not diagnose. Cite only retrieved snippet IDs. If evidence is insufficient, finish with uncertainty and no unsupported claims.",
-                  issues: refined.issues,
-                },
-              });
+              queueRetry(messages, step, refined.issues, "INVALID_RESULT");
               continue;
             }
             return fail(deps, run.id, "INVALID_RESULT", refined.issues.join("; "));
@@ -261,6 +252,26 @@ export function createAgentRunner<TResult>(deps: {
               input: { kind: "result_overlay" },
               output: { notes: refined.notes },
             });
+          }
+
+          const safety = deps.definition.safetyReview
+            ? deps.definition.safetyReview(refined.result, { retrievedSnippets })
+            : { passed: true, issues: [] };
+
+          await recordEvent(deps.events, {
+            agentRunId: run.id,
+            eventType: "safety_review",
+            input: { kind: "deterministic_safety" },
+            output: { passed: safety.passed, issues: safety.issues },
+          });
+
+          if (!safety.passed) {
+            if (schemaRetries < deps.budgets.maxSchemaRetries) {
+              schemaRetries += 1;
+              queueRetry(messages, step, safety.issues, "SAFETY_FAILURE");
+              continue;
+            }
+            return fail(deps, run.id, "SAFETY_FAILURE", safety.issues.join("; "));
           }
 
           await recordEvent(deps.events, {
@@ -287,6 +298,26 @@ export function createAgentRunner<TResult>(deps: {
       }
     },
   };
+}
+
+function queueRetry<TResult>(
+  messages: ModelMessage[],
+  step: AgentStep<TResult>,
+  issues: string[],
+  code: Extract<AgentFailureCode, "INVALID_RESULT" | "SAFETY_FAILURE">,
+): true {
+  messages.push({ role: "assistant", content: step });
+  messages.push({
+    role: "user",
+    content: {
+      type: "control_error",
+      code,
+      message:
+        "The finish result was rejected by deterministic checks. Do not diagnose. Cite only retrieved snippet IDs whose text supports the claim. If evidence is insufficient, finish with uncertainty and no unsupported claims.",
+      issues,
+    },
+  });
+  return true;
 }
 
 async function fail<TResult>(
@@ -341,13 +372,9 @@ function toObservation(result: ToolInvocationResult): unknown {
   });
 }
 
-function collectCitationIdsFrom(value: unknown): string[] {
-  const ids: string[] = [];
+function collectSnippets(value: unknown): RetrievedSnippet[] {
+  const snippets: RetrievedSnippet[] = [];
   const visit = (node: unknown) => {
-    if (typeof node === "string" && /^cite:[A-Za-z0-9_-]+:\d+$/.test(node)) {
-      ids.push(node);
-      return;
-    }
     if (Array.isArray(node)) {
       for (const item of node) {
         visit(item);
@@ -355,13 +382,17 @@ function collectCitationIdsFrom(value: unknown): string[] {
       return;
     }
     if (node !== null && typeof node === "object") {
-      for (const nested of Object.values(node)) {
+      const record = node as Record<string, unknown>;
+      if (typeof record.citationId === "string" && typeof record.relevantText === "string") {
+        snippets.push({ citationId: record.citationId, text: record.relevantText });
+      }
+      for (const nested of Object.values(record)) {
         visit(nested);
       }
     }
   };
   visit(value);
-  return ids;
+  return snippets;
 }
 
 function jsonSafe(value: unknown): unknown {

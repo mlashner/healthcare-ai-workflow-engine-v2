@@ -190,6 +190,7 @@ describe("care coordinator runner", () => {
     expect(kinds).toContain("tool_call");
     expect(kinds).toContain("tool_result");
     expect(kinds).toContain("finish");
+    expect(kinds).toContain("safety_review");
     expect(
       events.events.some(
         (event) =>

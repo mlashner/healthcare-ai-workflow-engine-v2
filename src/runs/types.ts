@@ -4,7 +4,8 @@ export type AgentFailureCode =
   | "BUDGET_EXHAUSTED"
   | "SCHEMA_FAILURE"
   | "PROVIDER_FAILURE"
-  | "INVALID_RESULT";
+  | "INVALID_RESULT"
+  | "SAFETY_FAILURE";
 
 export type AgentRunSuccess<TResult> = {
   ok: true;

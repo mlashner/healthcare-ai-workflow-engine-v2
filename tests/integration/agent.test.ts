@@ -8,6 +8,7 @@ import { closeDb, getDb } from "@/lib/db/client";
 import { createRepositories } from "@/lib/db/repositories";
 import { agentRuns, careTasks, encounters, patients, providers } from "@/lib/db/schema";
 import { createScriptedModelProvider } from "@/llm";
+import type { ModelMessage } from "@/llm";
 import { fictionalKnowledgeCorpus } from "@/retrieval/corpus";
 import { formatCitationId } from "@/retrieval/citations";
 import { createLexicalEmbedder } from "@/retrieval/embedder";
@@ -48,7 +49,7 @@ function testId(label: string): string {
   return `test_agent_${label}_${crypto.randomUUID()}`;
 }
 
-function citedResult(): CareCoordinatorResult {
+function citedResult(citationId: string): CareCoordinatorResult {
   return {
     summary: "Fictional follow-up coordination may be needed after the unplanned visit.",
     identifiedConcerns: [
@@ -166,7 +167,11 @@ describe("care coordinator integration", () => {
             priority: "medium",
           },
         },
-        { type: "finish", result: citedResult() },
+        (messages: ModelMessage[]) => {
+          const encoded = JSON.stringify(messages);
+          const match = /cite:[A-Za-z0-9_-]+:\d+/.exec(encoded);
+          return { type: "finish", result: citedResult(match?.[0] ?? citationId) };
+        },
       ]),
       gateway,
       runs: repos.agentRuns,
@@ -189,7 +194,9 @@ describe("care coordinator integration", () => {
       throw new Error(outcome.message);
     }
 
-    expect(outcome.result.identifiedConcerns[0]?.citationIds).toContain(citationId);
+    expect(outcome.result.identifiedConcerns[0]?.citationIds[0]).toMatch(
+      /^cite:kb_diabetes_followup:\d+$/,
+    );
     expect(outcome.result.evidence.some((item) => item.kind === "retrieved")).toBe(true);
     expect(outcome.result.evidence.some((item) => item.kind === "inferred")).toBe(true);
     expect(outcome.result.requiresHumanReview).toBe(true);
@@ -210,6 +217,7 @@ describe("care coordinator integration", () => {
     ]);
     expect(events.filter((event) => event.eventType === "tool_result")).toHaveLength(5);
     expect(events.some((event) => event.eventType === "finish")).toBe(true);
+    expect(events.some((event) => event.eventType === "safety_review")).toBe(true);
 
     const tasks = await repos.careTasks.listByPatientId(patient.id);
     expect(tasks).toHaveLength(0);

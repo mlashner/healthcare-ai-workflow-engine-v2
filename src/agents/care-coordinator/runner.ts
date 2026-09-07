@@ -1,6 +1,7 @@
 import { defaultCareCoordinatorBudgets, mergeBudgets, type RunBudgets } from "@/runs/budgets";
 import type { EventStore, RunStore } from "@/runs/stores";
 import type { AgentRunOutcome } from "@/runs/types";
+import { reviewCareCoordinatorSafety } from "@/safety";
 import type { ModelProvider } from "@/llm";
 import type { ToolInvoker } from "../runner";
 
@@ -28,6 +29,7 @@ export function createCareCoordinatorRunner(deps: {
       stepSchema: careCoordinatorStepSchema,
       schemaName: CARE_COORDINATOR_SCHEMA_NAME,
       refineResult: validateCareCoordinatorResult,
+      safetyReview: reviewCareCoordinatorSafety,
     },
     model: deps.model,
     gateway: deps.gateway,
