@@ -11,6 +11,7 @@ export async function runEvalSuite(options: { categories?: EvalCategory[] } = {}
   result: EvalSuiteResult;
   report: string;
   jsonPath: string;
+  previous?: EvalSuiteResult;
 }> {
   const startedAt = new Date().toISOString();
   const knowledge = createEvalKnowledgeIndex();
@@ -38,5 +39,5 @@ export async function runEvalSuite(options: { categories?: EvalCategory[] } = {}
 
   const written = writeEvalResult(result);
   const report = formatEvalReport(result, written.previous);
-  return { result, report, jsonPath: written.jsonPath };
+  return { result, report, jsonPath: written.jsonPath, previous: written.previous };
 }

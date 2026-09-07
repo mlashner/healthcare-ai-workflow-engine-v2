@@ -8,6 +8,8 @@ Language models are reached only through the `ModelProvider` port. See [`docs/mo
 
 Each agent run records allowlisted AI metrics (model, tokens, cost, latency, tool counts) with no chart text. The operator view is [`/admin`](http://localhost:3000/admin). See [`docs/observability.md`](docs/observability.md) for what is captured and which production metrics to add next.
 
+A local MCP server exposes eval, traces, and knowledge search to Cursor. See [`docs/mcp.md`](docs/mcp.md). After reload, ask: *Run the latest evaluation suite and tell me which failures increased compared with the previous run.*
+
 ## Stack
 
 TypeScript, Next.js, PostgreSQL with pgvector, Drizzle ORM, Zod, Vitest, Playwright. Local PostgreSQL runs in Docker.
@@ -46,6 +48,7 @@ npm test                 # unit tests
 npm run test:integration # requires migrated local Postgres
 npm run test:e2e         # Playwright; starts the Next.js app
 npm run eval             # CarePilot evaluation suite (in-memory, no Postgres)
+npm run mcp              # stdio MCP server for Cursor (eval, traces, knowledge search)
 ```
 
 `npm run eval` runs 32 fictional patient scenarios against the care-coordinator agent with a scripted model, scores control-plane behavior, and writes a comparable report to `eval/results/`. It establishes a baseline; it does not tune the agent.

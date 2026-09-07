@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "carepilot": {
+      "type": "stdio",
+      "command": "${workspaceFolder}/node_modules/.bin/tsx",
+      "args": ["${workspaceFolder}/src/mcp/stdio.ts"],
+      "envFile": "${workspaceFolder}/.env"
+    }
+  }
+}

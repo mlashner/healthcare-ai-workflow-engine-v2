@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { formatEvalReport } from "./report";
@@ -33,10 +33,43 @@ export function writeEvalResult(result: EvalSuiteResult): {
   return { jsonPath, latestJsonPath, latestMarkdownPath, previous };
 }
 
-export function readLatestResult(): EvalSuiteResult | undefined {
+export function readLatestResult(directory = resultsDirectory()): EvalSuiteResult | undefined {
   try {
-    return JSON.parse(readFileSync(join(resultsDirectory(), EVAL_LATEST_JSON), "utf8")) as EvalSuiteResult;
+    return JSON.parse(readFileSync(join(directory, EVAL_LATEST_JSON), "utf8")) as EvalSuiteResult;
   } catch {
     return undefined;
   }
+}
+
+export function listEvalSuiteResults(directory = resultsDirectory()): EvalSuiteResult[] {
+  let names: string[] = [];
+  try {
+    names = readdirSync(directory);
+  } catch {
+    return [];
+  }
+
+  const results: EvalSuiteResult[] = [];
+  for (const name of names) {
+    if (name === EVAL_LATEST_JSON || !name.endsWith(".json")) {
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(readFileSync(join(directory, name), "utf8")) as EvalSuiteResult;
+      if (typeof parsed.startedAt === "string" && Array.isArray(parsed.scenarios)) {
+        results.push(parsed);
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return results.sort((left, right) => left.startedAt.localeCompare(right.startedAt));
+}
+
+/** Most recent timestamped suite that is not the current `latest.json`. */
+export function readPreviousResult(directory = resultsDirectory()): EvalSuiteResult | undefined {
+  const latest = readLatestResult(directory);
+  const listed = listEvalSuiteResults(directory);
+  return [...listed].reverse().find((result) => result.startedAt !== latest?.startedAt);
 }
