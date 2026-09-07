@@ -82,6 +82,8 @@ export const auditOutcomes = [
   "validation_error",
   "unknown_tool",
   "execution_error",
+  "policy_allowed",
+  "policy_denied",
 ] as const;
 
 export type ProviderRole = (typeof providerRoles)[number];
