@@ -42,3 +42,21 @@ describe("log", () => {
     expect(payload.ts).toEqual(expect.any(String));
   });
 });
+
+describe("demographic redaction", () => {
+  it("redacts chart demographics without blanking toolName", () => {
+    expect(
+      redact({
+        toolName: "getPatientContext",
+        name: "Ava Nguyen (FICTIONAL)",
+        dateOfBirth: "1978-06-21",
+        transcript: "FICTIONAL ENCOUNTER",
+      }),
+    ).toEqual({
+      toolName: "getPatientContext",
+      name: "[redacted]",
+      dateOfBirth: "[redacted]",
+      transcript: "[redacted]",
+    });
+  });
+});

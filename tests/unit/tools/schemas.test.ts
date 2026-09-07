@@ -30,6 +30,18 @@ describe("tool input schemas", () => {
     expect(result.success).toBe(false);
   });
 
+  it("rejects extra keys on an approval payload", () => {
+    const result = requestHumanApprovalInputSchema.safeParse({
+      actionType: "notify_care_team",
+      payload: {
+        patientId: "patient_fictional_ava",
+        email: "attacker@example.com",
+        html: "<script>alert(1)</script>",
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
   it("rejects an unknown approval action type", () => {
     const result = requestHumanApprovalInputSchema.safeParse({
       actionType: "execute_sql",

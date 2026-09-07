@@ -5,7 +5,8 @@ export type AgentFailureCode =
   | "SCHEMA_FAILURE"
   | "PROVIDER_FAILURE"
   | "INVALID_RESULT"
-  | "SAFETY_FAILURE";
+  | "SAFETY_FAILURE"
+  | "RATE_LIMITED";
 
 export type AgentRunSuccess<TResult> = {
   ok: true;

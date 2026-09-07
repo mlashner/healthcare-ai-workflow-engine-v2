@@ -1,4 +1,5 @@
 import { defaultCareCoordinatorBudgets, mergeBudgets, type RunBudgets } from "@/runs/budgets";
+import { createRunRateLimiter, type RunRateLimiter } from "@/runs/rate-limit";
 import type { EventStore, RunStore } from "@/runs/stores";
 import type { AgentRunOutcome } from "@/runs/types";
 import { reviewCareCoordinatorSafety } from "@/safety";
@@ -21,7 +22,9 @@ export function createCareCoordinatorRunner(deps: {
   runs: RunStore;
   events: EventStore;
   budgets?: Partial<RunBudgets>;
+  limiter?: RunRateLimiter;
 }) {
+  const budgets = mergeBudgets(defaultCareCoordinatorBudgets, deps.budgets);
   const runner = createAgentRunner<CareCoordinatorResult>({
     definition: {
       name: "care_coordinator",
@@ -35,7 +38,8 @@ export function createCareCoordinatorRunner(deps: {
     gateway: deps.gateway,
     runs: deps.runs,
     events: deps.events,
-    budgets: mergeBudgets(defaultCareCoordinatorBudgets, deps.budgets),
+    budgets,
+    limiter: deps.limiter ?? createRunRateLimiter(),
   });
 
   return {

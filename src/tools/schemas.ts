@@ -131,17 +131,49 @@ export const draftPatientMessageOutputSchema = z.object({
   status: z.literal("draft"),
 });
 
-export const requestHumanApprovalInputSchema = z
-  .object({
-    actionType: z.enum(approvalActionTypes),
-    payload: z
-      .object({
-        patientId: entityIdSchema,
-      })
-      .catchall(z.unknown()),
-    reason: z.string().min(1).max(2000).optional(),
-  })
-  .strict();
+const approvalReason = z.string().min(1).max(2000).optional();
+
+export const requestHumanApprovalInputSchema = z.discriminatedUnion("actionType", [
+  z
+    .object({
+      actionType: z.literal("propose_referral"),
+      payload: z
+        .object({
+          patientId: entityIdSchema,
+          specialty: z.string().min(1).max(100).optional(),
+          note: z.string().min(1).max(500).optional(),
+        })
+        .strict(),
+      reason: approvalReason,
+    })
+    .strict(),
+  z
+    .object({
+      actionType: z.literal("schedule_outreach"),
+      payload: z
+        .object({
+          patientId: entityIdSchema,
+          purpose: z.string().min(1).max(300).optional(),
+          note: z.string().min(1).max(500).optional(),
+        })
+        .strict(),
+      reason: approvalReason,
+    })
+    .strict(),
+  z
+    .object({
+      actionType: z.literal("notify_care_team"),
+      payload: z
+        .object({
+          patientId: entityIdSchema,
+          message: z.string().min(1).max(500).optional(),
+          note: z.string().min(1).max(500).optional(),
+        })
+        .strict(),
+      reason: approvalReason,
+    })
+    .strict(),
+]);
 
 export const requestHumanApprovalOutputSchema = z.object({
   approvalRequestId: entityIdSchema,

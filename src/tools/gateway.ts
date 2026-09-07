@@ -104,7 +104,6 @@ async function failAndAudit(
     toolName,
     code: error.code,
     agentRunId: context.agentRunId,
-    patientScope: context.patientScope,
   });
 
   return { ok: false, toolName, error };

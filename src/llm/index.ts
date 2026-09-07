@@ -1,6 +1,7 @@
 export { decodeStructured } from "./decode";
 export { isModelError, ModelError } from "./errors";
 export type { ModelErrorCode } from "./errors";
+export { createTimedModelProvider, withTimeout } from "./timeout";
 export { createFailingModelProvider, createScriptedModelProvider } from "./scripted";
 export type { ScriptedStep } from "./scripted";
 export type {

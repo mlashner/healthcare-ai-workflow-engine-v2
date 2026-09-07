@@ -2,16 +2,20 @@ import type { ToolActor, ToolInvocationContext } from "@/authz/types";
 import type { AgentIdentity, AgentEvent, CreateAgentEvent } from "@/lib/domain";
 import { redact } from "@/lib/logger";
 import { decodeStructured, isModelError, ModelError } from "@/llm";
+import { createTimedModelProvider, withTimeout } from "@/llm/timeout";
 import type { ModelMessage, ModelProvider } from "@/llm";
 import {
   budgetMessage,
   checkIterationBudget,
+  checkThinkBudget,
   checkToolBudget,
   createBudgetState,
+  estimateTokens,
   recordModelInvocation,
   recordToolCall,
   type RunBudgets,
 } from "@/runs/budgets";
+import type { RunRateLimiter } from "@/runs/rate-limit";
 import type { EventStore, RunStore } from "@/runs/stores";
 import type { AgentFailureCode, AgentRunOutcome } from "@/runs/types";
 import type { RetrievedSnippet } from "@/safety";
@@ -77,7 +81,10 @@ export function createAgentRunner<TResult>(deps: {
   runs: RunStore;
   events: EventStore;
   budgets: RunBudgets;
+  limiter?: RunRateLimiter;
 }): AgentRunner<TResult> {
+  const model = createTimedModelProvider(deps.model, deps.budgets.providerTimeoutMs);
+
   return {
     async run(request) {
       const run = await deps.runs.create({
@@ -87,219 +94,257 @@ export function createAgentRunner<TResult>(deps: {
         status: "running",
       });
 
-      const messages: ModelMessage[] = [
-        { role: "system", content: deps.definition.systemPrompt },
-        { role: "user", content: request.userContent },
-      ];
-      const state = createBudgetState();
-      const retrievedSnippets: RetrievedSnippet[] = [];
-      let schemaRetries = 0;
-      let providerRetries = 0;
+      const admitted = deps.limiter?.acquire(request.actor.id) ?? { ok: true as const };
+      if (!admitted.ok) {
+        return fail(deps, run.id, "RATE_LIMITED", admitted.reason);
+      }
 
       try {
-        while (true) {
-          const iterationBlock = checkIterationBudget(state, deps.budgets);
-          if (iterationBlock) {
-            return fail(deps, run.id, "BUDGET_EXHAUSTED", budgetMessage(iterationBlock));
-          }
-
-          let completion;
-          try {
-            completion = await deps.model.complete({
-              messages,
-              schemaName: deps.definition.schemaName,
-            });
-            providerRetries = 0;
-          } catch (error) {
-            const modelError = toModelError(error);
-            await recordEvent(deps.events, {
-              agentRunId: run.id,
-              eventType: "error",
-              input: { kind: "model_invocation", iteration: state.modelInvocations },
-              output: { code: modelError.code, message: modelError.message },
-            });
-            if (providerRetries < deps.budgets.maxProviderRetries) {
-              providerRetries += 1;
-              messages.push({
-                role: "user",
-                content: {
-                  type: "control_error",
-                  code: modelError.code,
-                  message: "The model provider failed. Propose the next structured step.",
-                },
-              });
-              continue;
-            }
-            return fail(deps, run.id, "PROVIDER_FAILURE", modelError.message);
-          }
-
-          recordModelInvocation(state, completion.usage);
-          await recordEvent(deps.events, {
-            agentRunId: run.id,
-            eventType: "think",
-            input: {
-              kind: "model_invocation",
-              iteration: state.modelInvocations,
-              schemaName: deps.definition.schemaName,
-            },
-            output: jsonSafe(completion.content),
-          });
-
-          let step: AgentStep<TResult>;
-          try {
-            step = decodeStructured(
-              completion.content,
-              deps.definition.stepSchema,
-              deps.definition.schemaName,
-            );
-            schemaRetries = 0;
-          } catch (error) {
-            const modelError = toModelError(error);
-            await recordEvent(deps.events, {
-              agentRunId: run.id,
-              eventType: "error",
-              input: { kind: "schema_failure" },
-              output: { code: modelError.code, message: modelError.message, details: modelError.details },
-            });
-            if (schemaRetries < deps.budgets.maxSchemaRetries) {
-              schemaRetries += 1;
-              messages.push({
-                role: "user",
-                content: {
-                  type: "control_error",
-                  code: "SCHEMA_FAILURE",
-                  message: "Output must match the step schema. Emit think, tool_call, or finish only.",
-                  details: modelError.details,
-                },
-              });
-              continue;
-            }
-            return fail(deps, run.id, "SCHEMA_FAILURE", modelError.message);
-          }
-
-          if (step.type === "think") {
-            messages.push({ role: "assistant", content: step });
-            await recordEvent(deps.events, {
-              agentRunId: run.id,
-              eventType: "think",
-              input: { kind: "thought" },
-              output: { thought: step.thought },
-            });
-            continue;
-          }
-
-          if (step.type === "tool_call") {
-            const toolBlock = checkToolBudget(state, deps.budgets, step.toolName);
-            if (toolBlock) {
-              return fail(deps, run.id, "BUDGET_EXHAUSTED", budgetMessage(toolBlock));
-            }
-
-            recordToolCall(state, step.toolName);
-            messages.push({ role: "assistant", content: step });
-            await recordEvent(deps.events, {
-              agentRunId: run.id,
-              eventType: "tool_call",
-              toolName: step.toolName,
-              input: jsonSafe(step.arguments),
-            });
-
-            const invocation = await deps.gateway.invoke(step.toolName, step.arguments, {
-              actor: request.actor,
-              agentName: deps.definition.name,
-              patientScope: request.patientId,
-              agentRunId: run.id,
-              phase: "agent_loop",
-            });
-
-            const observation = toObservation(invocation);
-            if (invocation.ok) {
-              retrievedSnippets.push(...collectSnippets(invocation.output));
-            }
-
-            await recordEvent(deps.events, {
-              agentRunId: run.id,
-              eventType: "tool_result",
-              toolName: step.toolName,
-              input: jsonSafe(step.arguments),
-              output: observation,
-            });
-            messages.push({ role: "tool", name: step.toolName, content: observation });
-            continue;
-          }
-
-          const retrievedCitationIds = new Set(retrievedSnippets.map((snippet) => snippet.citationId));
-          const refined = deps.definition.refineResult
-            ? deps.definition.refineResult(step.result, { retrievedCitationIds })
-            : { ok: true as const, result: step.result, notes: [] };
-
-          if (!refined.ok) {
-            await recordEvent(deps.events, {
-              agentRunId: run.id,
-              eventType: "error",
-              input: { kind: "invalid_result" },
-              output: { issues: refined.issues },
-            });
-            if (schemaRetries < deps.budgets.maxSchemaRetries) {
-              schemaRetries += 1;
-              queueRetry(messages, step, refined.issues, "INVALID_RESULT");
-              continue;
-            }
-            return fail(deps, run.id, "INVALID_RESULT", refined.issues.join("; "));
-          }
-
-          if (refined.notes && refined.notes.length > 0) {
-            await recordEvent(deps.events, {
-              agentRunId: run.id,
-              eventType: "policy_decision",
-              input: { kind: "result_overlay" },
-              output: { notes: refined.notes },
-            });
-          }
-
-          const safety = deps.definition.safetyReview
-            ? deps.definition.safetyReview(refined.result, { retrievedSnippets })
-            : { passed: true, issues: [] };
-
-          await recordEvent(deps.events, {
-            agentRunId: run.id,
-            eventType: "safety_review",
-            input: { kind: "deterministic_safety" },
-            output: { passed: safety.passed, issues: safety.issues },
-          });
-
-          if (!safety.passed) {
-            if (schemaRetries < deps.budgets.maxSchemaRetries) {
-              schemaRetries += 1;
-              queueRetry(messages, step, safety.issues, "SAFETY_FAILURE");
-              continue;
-            }
-            return fail(deps, run.id, "SAFETY_FAILURE", safety.issues.join("; "));
-          }
-
-          await recordEvent(deps.events, {
-            agentRunId: run.id,
-            eventType: "finish",
-            output: jsonSafe(refined.result),
-          });
-          await deps.runs.update(run.id, {
-            status: "completed",
-            completedAt: new Date(),
-          });
-
-          return {
-            ok: true,
-            status: "completed",
-            runId: run.id,
-            result: refined.result,
-            events: await deps.events.listByAgentRunId(run.id),
-          };
-        }
+        return await withTimeout(
+          executeLoop(deps, model, request, run.id),
+          deps.budgets.runTimeoutMs,
+          `agent run timed out after ${deps.budgets.runTimeoutMs}ms`,
+        );
       } catch (error) {
         const message = error instanceof Error ? error.message : "agent run failed";
-        return fail(deps, run.id, "PROVIDER_FAILURE", message);
+        const code = isModelError(error) && error.code === "TIMEOUT" ? "PROVIDER_FAILURE" : "PROVIDER_FAILURE";
+        return fail(deps, run.id, code, message);
+      } finally {
+        deps.limiter?.release(request.actor.id);
       }
     },
   };
+}
+
+async function executeLoop<TResult>(
+  deps: {
+    definition: AgentDefinition<TResult>;
+    gateway: ToolInvoker;
+    runs: RunStore;
+    events: EventStore;
+    budgets: RunBudgets;
+  },
+  model: ModelProvider,
+  request: AgentRunRequest,
+  runId: string,
+): Promise<AgentRunOutcome<TResult>> {
+  const messages: ModelMessage[] = [
+    { role: "system", content: deps.definition.systemPrompt },
+    { role: "user", content: request.userContent },
+  ];
+  const state = createBudgetState();
+  const retrievedSnippets: RetrievedSnippet[] = [];
+  let schemaRetries = 0;
+  let providerRetries = 0;
+
+  while (true) {
+    const iterationBlock = checkIterationBudget(state, deps.budgets);
+    if (iterationBlock) {
+      return fail(deps, runId, "BUDGET_EXHAUSTED", budgetMessage(iterationBlock));
+    }
+
+    let completion;
+    try {
+      completion = await model.complete({
+        messages,
+        schemaName: deps.definition.schemaName,
+      });
+      providerRetries = 0;
+    } catch (error) {
+      const modelError = toModelError(error);
+      await recordEvent(deps.events, {
+        agentRunId: runId,
+        eventType: "error",
+        input: { kind: "model_invocation", iteration: state.modelInvocations },
+        output: { code: modelError.code, message: modelError.message },
+      });
+      if (providerRetries < deps.budgets.maxProviderRetries) {
+        providerRetries += 1;
+        messages.push({
+          role: "user",
+          content: {
+            type: "control_error",
+            code: modelError.code,
+            message: "The model provider failed. Propose the next structured step.",
+          },
+        });
+        continue;
+      }
+      return fail(deps, runId, "PROVIDER_FAILURE", modelError.message);
+    }
+
+    const usage = completion.usage ?? {
+      inputTokens: estimateTokens(messages),
+      outputTokens: estimateTokens(completion.content),
+    };
+    recordModelInvocation(state, usage);
+    await recordEvent(deps.events, {
+      agentRunId: runId,
+      eventType: "think",
+      input: {
+        kind: "model_invocation",
+        iteration: state.modelInvocations,
+        schemaName: deps.definition.schemaName,
+      },
+      output: jsonSafe(completion.content),
+    });
+
+    let step: AgentStep<TResult>;
+    try {
+      step = decodeStructured(
+        completion.content,
+        deps.definition.stepSchema,
+        deps.definition.schemaName,
+      );
+      schemaRetries = 0;
+    } catch (error) {
+      const modelError = toModelError(error);
+      await recordEvent(deps.events, {
+        agentRunId: runId,
+        eventType: "error",
+        input: { kind: "schema_failure" },
+        output: { code: modelError.code, message: modelError.message, details: modelError.details },
+      });
+      if (schemaRetries < deps.budgets.maxSchemaRetries) {
+        schemaRetries += 1;
+        messages.push({
+          role: "user",
+          content: {
+            type: "control_error",
+            code: "SCHEMA_FAILURE",
+            message: "Output must match the step schema. Emit think, tool_call, or finish only.",
+            details: modelError.details,
+          },
+        });
+        continue;
+      }
+      return fail(deps, runId, "SCHEMA_FAILURE", modelError.message);
+    }
+
+    if (step.type === "think") {
+      state.consecutiveThinks += 1;
+      const thinkBlock = checkThinkBudget(state, deps.budgets);
+      if (thinkBlock) {
+        return fail(deps, runId, "BUDGET_EXHAUSTED", budgetMessage(thinkBlock));
+      }
+      messages.push({ role: "assistant", content: step });
+      await recordEvent(deps.events, {
+        agentRunId: runId,
+        eventType: "think",
+        input: { kind: "thought" },
+        output: { thought: step.thought },
+      });
+      continue;
+    }
+
+    state.consecutiveThinks = 0;
+
+    if (step.type === "tool_call") {
+      const toolBlock = checkToolBudget(state, deps.budgets, step.toolName);
+      if (toolBlock) {
+        return fail(deps, runId, "BUDGET_EXHAUSTED", budgetMessage(toolBlock));
+      }
+
+      recordToolCall(state, step.toolName);
+      messages.push({ role: "assistant", content: step });
+      await recordEvent(deps.events, {
+        agentRunId: runId,
+        eventType: "tool_call",
+        toolName: step.toolName,
+        input: jsonSafe(step.arguments),
+      });
+
+      const invocation = await deps.gateway.invoke(step.toolName, step.arguments, {
+        actor: request.actor,
+        agentName: deps.definition.name,
+        patientScope: request.patientId,
+        agentRunId: runId,
+        phase: "agent_loop",
+      });
+
+      const observation = toObservation(invocation);
+      if (invocation.ok) {
+        retrievedSnippets.push(...collectSnippets(invocation.output));
+      }
+
+      await recordEvent(deps.events, {
+        agentRunId: runId,
+        eventType: "tool_result",
+        toolName: step.toolName,
+        input: jsonSafe(step.arguments),
+        output: observation,
+      });
+      messages.push({ role: "tool", name: step.toolName, content: observation });
+      continue;
+    }
+
+    const retrievedCitationIds = new Set(retrievedSnippets.map((snippet) => snippet.citationId));
+    const refined = deps.definition.refineResult
+      ? deps.definition.refineResult(step.result, { retrievedCitationIds })
+      : { ok: true as const, result: step.result, notes: [] };
+
+    if (!refined.ok) {
+      await recordEvent(deps.events, {
+        agentRunId: runId,
+        eventType: "error",
+        input: { kind: "invalid_result" },
+        output: { issues: refined.issues },
+      });
+      if (schemaRetries < deps.budgets.maxSchemaRetries) {
+        schemaRetries += 1;
+        queueRetry(messages, step, refined.issues, "INVALID_RESULT");
+        continue;
+      }
+      return fail(deps, runId, "INVALID_RESULT", refined.issues.join("; "));
+    }
+
+    if (refined.notes && refined.notes.length > 0) {
+      await recordEvent(deps.events, {
+        agentRunId: runId,
+        eventType: "policy_decision",
+        input: { kind: "result_overlay" },
+        output: { notes: refined.notes },
+      });
+    }
+
+    const safety = deps.definition.safetyReview
+      ? deps.definition.safetyReview(refined.result, { retrievedSnippets })
+      : { passed: true, issues: [] };
+
+    await recordEvent(deps.events, {
+      agentRunId: runId,
+      eventType: "safety_review",
+      input: { kind: "deterministic_safety" },
+      output: { passed: safety.passed, issues: safety.issues },
+    });
+
+    if (!safety.passed) {
+      if (schemaRetries < deps.budgets.maxSchemaRetries) {
+        schemaRetries += 1;
+        queueRetry(messages, step, safety.issues, "SAFETY_FAILURE");
+        continue;
+      }
+      return fail(deps, runId, "SAFETY_FAILURE", safety.issues.join("; "));
+    }
+
+    await recordEvent(deps.events, {
+      agentRunId: runId,
+      eventType: "finish",
+      output: jsonSafe(refined.result),
+    });
+    await deps.runs.update(runId, {
+      status: "completed",
+      completedAt: new Date(),
+    });
+
+    return {
+      ok: true,
+      status: "completed",
+      runId,
+      result: refined.result,
+      events: await deps.events.listByAgentRunId(runId),
+    };
+  }
 }
 
 function queueRetry<TResult>(

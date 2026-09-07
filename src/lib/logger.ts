@@ -9,7 +9,13 @@ const levelRank: Record<LogLevel, number> = {
   error: 40,
 };
 
-const SENSITIVE_KEY = /password|secret|token|authorization|cookie|database_url|api[_-]?key/i;
+const SECRET_KEY = /password|secret|token|authorization|cookie|database_url|api[_-]?key/i;
+const DEMOGRAPHIC_KEY =
+  /^(name|dateOfBirth|date_of_birth|transcript|medications|conditions|talkingPoints|relevantText|thought|body)$/i;
+
+function isSensitiveKey(key: string): boolean {
+  return SECRET_KEY.test(key) || DEMOGRAPHIC_KEY.test(key);
+}
 
 export function redact(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -19,7 +25,7 @@ export function redact(value: unknown): unknown {
     return Object.fromEntries(
       Object.entries(value).map(([key, nested]) => [
         key,
-        SENSITIVE_KEY.test(key) ? "[redacted]" : redact(nested),
+        isSensitiveKey(key) ? "[redacted]" : redact(nested),
       ]),
     );
   }

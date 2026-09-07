@@ -4,20 +4,25 @@ export type RunBudgets = {
   maxRepeatsPerTool: number;
   maxSchemaRetries: number;
   maxProviderRetries: number;
-  maxTokens?: number;
+  maxTokens: number;
+  maxConsecutiveThinks: number;
+  providerTimeoutMs: number;
+  runTimeoutMs: number;
 };
 
 export type BudgetCode =
   | "MAX_ITERATIONS"
   | "MAX_TOOL_CALLS"
   | "MAX_TOOL_REPEATS"
-  | "MAX_TOKENS";
+  | "MAX_TOKENS"
+  | "MAX_CONSECUTIVE_THINKS";
 
 export type BudgetState = {
   modelInvocations: number;
   toolCalls: number;
   toolRepeats: Record<string, number>;
   tokens: number;
+  consecutiveThinks: number;
 };
 
 export const defaultCareCoordinatorBudgets: RunBudgets = {
@@ -26,6 +31,10 @@ export const defaultCareCoordinatorBudgets: RunBudgets = {
   maxRepeatsPerTool: 2,
   maxSchemaRetries: 2,
   maxProviderRetries: 2,
+  maxTokens: 16_000,
+  maxConsecutiveThinks: 3,
+  providerTimeoutMs: 15_000,
+  runTimeoutMs: 60_000,
 };
 
 export function createBudgetState(): BudgetState {
@@ -34,6 +43,7 @@ export function createBudgetState(): BudgetState {
     toolCalls: 0,
     toolRepeats: {},
     tokens: 0,
+    consecutiveThinks: 0,
   };
 }
 
@@ -64,8 +74,18 @@ export function checkIterationBudget(
   if (state.modelInvocations >= budgets.maxIterations) {
     return "MAX_ITERATIONS";
   }
-  if (budgets.maxTokens !== undefined && state.tokens >= budgets.maxTokens) {
+  if (state.tokens >= budgets.maxTokens) {
     return "MAX_TOKENS";
+  }
+  return undefined;
+}
+
+export function checkThinkBudget(
+  state: BudgetState,
+  budgets: RunBudgets,
+): BudgetCode | undefined {
+  if (state.consecutiveThinks >= budgets.maxConsecutiveThinks) {
+    return "MAX_CONSECUTIVE_THINKS";
   }
   return undefined;
 }
@@ -94,5 +114,11 @@ export function budgetMessage(code: BudgetCode): string {
       return "repeated the same tool beyond the allowed limit";
     case "MAX_TOKENS":
       return "agent token budget exhausted";
+    case "MAX_CONSECUTIVE_THINKS":
+      return "consecutive think steps exceeded the allowed limit";
   }
+}
+
+export function estimateTokens(value: unknown): number {
+  return Math.ceil(JSON.stringify(value ?? "").length / 4);
 }
