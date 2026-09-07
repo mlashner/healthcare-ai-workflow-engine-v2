@@ -21,6 +21,7 @@ docker compose up -d
 npm install
 npm run db:generate   # first time, or after schema changes
 npm run db:migrate
+npm run db:seed       # fictional demonstration patients and documents
 npm run dev
 ```
 

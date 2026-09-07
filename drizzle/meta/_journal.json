@@ -8,6 +8,13 @@
       "when": 1788739078494,
       "tag": "0000_legal_zarek",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788739475012,
+      "tag": "0001_cool_shiva",
+      "breakpoints": true
     }
   ]
 }

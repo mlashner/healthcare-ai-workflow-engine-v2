@@ -14,7 +14,8 @@
     "test:integration": "vitest run tests/integration",
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx src/lib/db/seed.ts"
   },
   "engines": {
     "node": ">=20"
@@ -37,6 +38,7 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.4",
+    "tsx": "^4.23.13",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"
   }
