@@ -456,7 +456,7 @@ Architecture B occupies the honest middle:
 
 - The model is visibly an agent: it chooses typed tools, observes results, and emits a structured proposal.
 - The application remains the authority: allowlists, schemas, policy, approval, execution, and audit never depend on model honesty.
-- Observability is a single `AgentRun` with a linear (or lightly branched) trace, which is what the approval UI and eval suite need.
+- Observability is a single `AgentRun` with a linear (or lightly branched) trace, which is what the approval UI and eval suite need. Numeric AI metrics (tokens, cost, latency, tool counts) are documented in [`docs/observability.md`](observability.md).
 - A second agent can be added later without a rewrite, because the extension point is "new identity + allowlist + schemas" on the same gateway. If a supervisor becomes necessary, B can evolve into C.
 
 ### 9.1 Target control flow

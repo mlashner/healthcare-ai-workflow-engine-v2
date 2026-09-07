@@ -121,6 +121,30 @@ describe("assembleTrace", () => {
         },
         timestamp: new Date("2026-09-02T15:00:16.000Z"),
       }),
+      event({
+        id: "e_telemetry",
+        eventType: "policy_decision",
+        input: { kind: "run_telemetry" },
+        output: {
+          kind: "run_telemetry",
+          runId: run.id,
+          agentName: "care_coordinator",
+          status: "completed",
+          failureCode: null,
+          model: "scripted",
+          modelVersion: "scripted",
+          inputTokens: 80,
+          outputTokens: 40,
+          estimatedCostUsd: 0.0008,
+          modelCallCount: 1,
+          toolCallCount: 3,
+          failedToolCallCount: 1,
+          modelLatencyMs: 12,
+          runDurationMs: 20000,
+          modelFailed: false,
+        },
+        timestamp: new Date("2026-09-02T15:00:19.000Z"),
+      }),
     ];
 
     const approvals: ApprovalRequest[] = [

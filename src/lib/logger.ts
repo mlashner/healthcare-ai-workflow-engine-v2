@@ -9,7 +9,8 @@ const levelRank: Record<LogLevel, number> = {
   error: 40,
 };
 
-const SECRET_KEY = /password|secret|token|authorization|cookie|database_url|api[_-]?key/i;
+const SECRET_KEY =
+  /password|secret|(?<![a-z])token(?![a-z])|authorization|cookie|database_url|api[_-]?key/i;
 const DEMOGRAPHIC_KEY =
   /^(name|dateOfBirth|date_of_birth|transcript|medications|conditions|talkingPoints|relevantText|thought|body)$/i;
 

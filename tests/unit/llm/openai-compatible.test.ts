@@ -49,6 +49,8 @@ describe("createOpenAiCompatibleProvider", () => {
     });
     expect(completion.usage.estimatedCostUsd).toBeGreaterThan(0);
     expect(provider.metadata.supportsStreaming).toBe(true);
+    expect(provider.metadata.model).toBe("demo-mini");
+    expect(provider.metadata.version).toBe("demo-mini");
 
     expect(requestBody?.response_format).toEqual(
       expect.objectContaining({ type: "json_schema" }),

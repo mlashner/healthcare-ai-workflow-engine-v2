@@ -91,6 +91,7 @@ export function createOpenAiCompatibleProvider(config: OpenAiCompatibleConfig): 
       id: config.id ?? "openai_compatible",
       displayName: config.displayName ?? "OpenAI-compatible",
       model: config.model,
+      version: config.model,
       supportsStructuredOutput: true,
       supportsToolCalling: true,
       supportsStreaming: true,

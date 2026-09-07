@@ -446,18 +446,32 @@ function estimateRunCost(events: AgentEvent[]): {
 } {
   let inputTokens = 0;
   let outputTokens = 0;
+  let usd = 0;
+  let usedRecorded = false;
   for (const event of events) {
     if (
       event.eventType === "think" &&
       isRecord(event.input) &&
       event.input.kind === "model_invocation"
     ) {
-      inputTokens += estimateTokens(event.input);
-      outputTokens += estimateTokens(event.output);
+      if (typeof event.input.inputTokens === "number" || typeof event.input.outputTokens === "number") {
+        usedRecorded = true;
+        inputTokens += typeof event.input.inputTokens === "number" ? event.input.inputTokens : 0;
+        outputTokens += typeof event.input.outputTokens === "number" ? event.input.outputTokens : 0;
+        usd += typeof event.input.estimatedCostUsd === "number" ? event.input.estimatedCostUsd : 0;
+      } else {
+        inputTokens += estimateTokens(event.input);
+        outputTokens += estimateTokens(event.output);
+      }
     }
   }
-  const usd =
-    (inputTokens * INPUT_USD_PER_MILLION + outputTokens * OUTPUT_USD_PER_MILLION) / 1_000_000;
+  if (!usedRecorded) {
+    usd =
+      (inputTokens * INPUT_USD_PER_MILLION + outputTokens * OUTPUT_USD_PER_MILLION) / 1_000_000;
+  } else if (usd === 0 && (inputTokens > 0 || outputTokens > 0)) {
+    usd =
+      (inputTokens * INPUT_USD_PER_MILLION + outputTokens * OUTPUT_USD_PER_MILLION) / 1_000_000;
+  }
   return { inputTokens, outputTokens, usd };
 }
 

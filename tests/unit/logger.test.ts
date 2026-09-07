@@ -22,6 +22,22 @@ describe("redact", () => {
       nested: { authorization: "[redacted]", ok: true },
     });
   });
+
+  it("leaves model token counts intact while redacting secret tokens", () => {
+    expect(
+      redact({
+        inputTokens: 120,
+        outputTokens: 40,
+        access_token: "sk-secret",
+        token: "session",
+      }),
+    ).toEqual({
+      inputTokens: 120,
+      outputTokens: 40,
+      access_token: "[redacted]",
+      token: "[redacted]",
+    });
+  });
 });
 
 describe("log", () => {

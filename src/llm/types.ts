@@ -57,6 +57,7 @@ export type ModelMetadata = {
   id: string;
   displayName: string;
   model: string;
+  version: string;
   supportsStructuredOutput: boolean;
   supportsToolCalling: boolean;
   supportsStreaming: boolean;

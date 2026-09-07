@@ -208,6 +208,30 @@ describe("care coordinator runner", () => {
       ),
     ).toBe(true);
     expect(events.events.some((event) => event.eventType === "finish")).toBe(true);
+
+    const telemetry = events.events.find(
+      (event) =>
+        event.eventType === "policy_decision" &&
+        event.input !== null &&
+        typeof event.input === "object" &&
+        "kind" in event.input &&
+        event.input.kind === "run_telemetry",
+    );
+    expect(telemetry?.output).toMatchObject({
+      kind: "run_telemetry",
+      agentName: "care_coordinator",
+      status: "completed",
+      model: "scripted",
+      modelVersion: "scripted",
+    });
+    const snapshot = JSON.stringify(telemetry?.output);
+    expect(snapshot).not.toContain("In Scope");
+    expect(snapshot).not.toContain("1978-06-21");
+    expect(snapshot).not.toContain(patientId);
+    expect(snapshot).not.toMatch(/transcript/i);
+    expect((telemetry?.output as { inputTokens: number }).inputTokens).toBeGreaterThan(0);
+    expect((telemetry?.output as { toolCallCount: number }).toolCallCount).toBe(2);
+    expect((telemetry?.output as { modelCallCount: number }).modelCallCount).toBeGreaterThan(0);
   });
 
   it("treats tool failures as observations and continues the run", async () => {
@@ -362,6 +386,20 @@ describe("care coordinator runner", () => {
       expect(outcome.code).toBe("PROVIDER_FAILURE");
     }
     expect(outcome.events.some((event) => event.eventType === "finish")).toBe(false);
+    const telemetry = outcome.events.find(
+      (event) =>
+        event.eventType === "policy_decision" &&
+        event.input !== null &&
+        typeof event.input === "object" &&
+        "kind" in event.input &&
+        event.input.kind === "run_telemetry",
+    );
+    expect(telemetry?.output).toMatchObject({
+      status: "failed",
+      failureCode: "PROVIDER_FAILURE",
+      modelFailed: true,
+      modelCallCount: 2,
+    });
   });
 
   it("sends unauthorized tool proposals to the gateway instead of authorizing them", async () => {

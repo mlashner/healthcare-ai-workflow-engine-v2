@@ -14,6 +14,7 @@ export type ScriptedStep =
 
 export type ScriptedProviderOptions = {
   model?: string;
+  version?: string;
   displayName?: string;
 };
 
@@ -21,6 +22,7 @@ const scriptedMetadata = (options?: ScriptedProviderOptions): ModelMetadata => (
   id: "scripted",
   displayName: options?.displayName ?? "Scripted deterministic fake",
   model: options?.model ?? "scripted",
+  version: options?.version ?? "scripted",
   supportsStructuredOutput: true,
   supportsToolCalling: true,
   supportsStreaming: true,
@@ -76,6 +78,7 @@ export function createFailingModelProvider(error: Error): ModelProvider {
       id: "failing",
       displayName: "Failing fake",
       model: "failing",
+      version: "failing",
       supportsStructuredOutput: false,
       supportsToolCalling: false,
       supportsStreaming: false,

@@ -12,6 +12,9 @@ export default function HomePage() {
         <Link href="/reviews">Clinician review dashboard</Link>
       </p>
       <p>
+        <Link href="/admin">AI observability</Link>
+      </p>
+      <p>
         <a href="/api/health">Health check</a>
       </p>
     </main>

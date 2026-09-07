@@ -1,9 +1,15 @@
 import type { ToolActor, ToolInvocationContext } from "@/authz/types";
 import type { AgentIdentity, AgentEvent, CreateAgentEvent } from "@/lib/domain";
-import { redact } from "@/lib/logger";
+import { logger, redact } from "@/lib/logger";
 import { decodeStructured, isModelError, ModelError } from "@/llm";
 import { createTimedModelProvider, withTimeout } from "@/llm/timeout";
 import type { ModelMessage, ModelProvider } from "@/llm";
+import {
+  buildRunTelemetry,
+  modelInvocationInput,
+  RUN_TELEMETRY_KIND,
+  type RunTelemetry,
+} from "@/observability";
 import {
   budgetMessage,
   checkIterationBudget,
@@ -94,21 +100,22 @@ export function createAgentRunner<TResult>(deps: {
         status: "running",
       });
 
+      const terminal = { model, startedAt: run.startedAt, agentName: deps.definition.name };
+
       const admitted = deps.limiter?.acquire(request.actor.id) ?? { ok: true as const };
       if (!admitted.ok) {
-        return fail(deps, run.id, "RATE_LIMITED", admitted.reason);
+        return fail(deps, run.id, "RATE_LIMITED", admitted.reason, terminal);
       }
 
       try {
         return await withTimeout(
-          executeLoop(deps, model, request, run.id),
+          executeLoop(deps, model, request, run.id, run.startedAt),
           deps.budgets.runTimeoutMs,
           `agent run timed out after ${deps.budgets.runTimeoutMs}ms`,
         );
       } catch (error) {
         const message = error instanceof Error ? error.message : "agent run failed";
-        const code = isModelError(error) && error.code === "TIMEOUT" ? "PROVIDER_FAILURE" : "PROVIDER_FAILURE";
-        return fail(deps, run.id, code, message);
+        return fail(deps, run.id, "PROVIDER_FAILURE", message, terminal);
       } finally {
         deps.limiter?.release(request.actor.id);
       }
@@ -127,7 +134,9 @@ async function executeLoop<TResult>(
   model: ModelProvider,
   request: AgentRunRequest,
   runId: string,
+  startedAt: Date,
 ): Promise<AgentRunOutcome<TResult>> {
+  const terminal = { model, startedAt, agentName: deps.definition.name };
   const messages: ModelMessage[] = [
     { role: "system", content: deps.definition.systemPrompt },
     { role: "user", content: request.userContent },
@@ -140,10 +149,11 @@ async function executeLoop<TResult>(
   while (true) {
     const iterationBlock = checkIterationBudget(state, deps.budgets);
     if (iterationBlock) {
-      return fail(deps, runId, "BUDGET_EXHAUSTED", budgetMessage(iterationBlock));
+      return fail(deps, runId, "BUDGET_EXHAUSTED", budgetMessage(iterationBlock), terminal);
     }
 
     let completion;
+    const invocationStarted = performance.now();
     try {
       completion = await model.complete({
         messages,
@@ -155,7 +165,13 @@ async function executeLoop<TResult>(
       await recordEvent(deps.events, {
         agentRunId: runId,
         eventType: "error",
-        input: { kind: "model_invocation", iteration: state.modelInvocations },
+        input: modelInvocationInput({
+          iteration: state.modelInvocations,
+          schemaName: deps.definition.schemaName,
+          metadata: model.metadata,
+          latencyMs: performance.now() - invocationStarted,
+          failed: true,
+        }),
         output: { code: modelError.code, message: modelError.message },
       });
       if (providerRetries < deps.budgets.maxProviderRetries) {
@@ -170,7 +186,7 @@ async function executeLoop<TResult>(
         });
         continue;
       }
-      return fail(deps, runId, "PROVIDER_FAILURE", modelError.message);
+      return fail(deps, runId, "PROVIDER_FAILURE", modelError.message, terminal);
     }
 
     const usage = completion.usage ?? {
@@ -181,11 +197,13 @@ async function executeLoop<TResult>(
     await recordEvent(deps.events, {
       agentRunId: runId,
       eventType: "think",
-      input: {
-        kind: "model_invocation",
+      input: modelInvocationInput({
         iteration: state.modelInvocations,
         schemaName: deps.definition.schemaName,
-      },
+        metadata: model.metadata,
+        usage,
+        latencyMs: performance.now() - invocationStarted,
+      }),
       output: jsonSafe(completion.content),
     });
 
@@ -218,14 +236,14 @@ async function executeLoop<TResult>(
         });
         continue;
       }
-      return fail(deps, runId, "SCHEMA_FAILURE", modelError.message);
+      return fail(deps, runId, "SCHEMA_FAILURE", modelError.message, terminal);
     }
 
     if (step.type === "think") {
       state.consecutiveThinks += 1;
       const thinkBlock = checkThinkBudget(state, deps.budgets);
       if (thinkBlock) {
-        return fail(deps, runId, "BUDGET_EXHAUSTED", budgetMessage(thinkBlock));
+        return fail(deps, runId, "BUDGET_EXHAUSTED", budgetMessage(thinkBlock), terminal);
       }
       messages.push({ role: "assistant", content: step });
       await recordEvent(deps.events, {
@@ -242,7 +260,7 @@ async function executeLoop<TResult>(
     if (step.type === "tool_call") {
       const toolBlock = checkToolBudget(state, deps.budgets, step.toolName);
       if (toolBlock) {
-        return fail(deps, runId, "BUDGET_EXHAUSTED", budgetMessage(toolBlock));
+        return fail(deps, runId, "BUDGET_EXHAUSTED", budgetMessage(toolBlock), terminal);
       }
 
       recordToolCall(state, step.toolName);
@@ -295,7 +313,7 @@ async function executeLoop<TResult>(
         queueRetry(messages, step, refined.issues, "INVALID_RESULT");
         continue;
       }
-      return fail(deps, runId, "INVALID_RESULT", refined.issues.join("; "));
+      return fail(deps, runId, "INVALID_RESULT", refined.issues.join("; "), terminal);
     }
 
     if (refined.notes && refined.notes.length > 0) {
@@ -327,7 +345,7 @@ async function executeLoop<TResult>(
         queueRetry(messages, step, safety.issues, "SAFETY_FAILURE");
         continue;
       }
-      return fail(deps, runId, "SAFETY_FAILURE", safety.issues.join("; "));
+      return fail(deps, runId, "SAFETY_FAILURE", safety.issues.join("; "), terminal);
     }
 
     await recordEvent(deps.events, {
@@ -335,9 +353,18 @@ async function executeLoop<TResult>(
       eventType: "finish",
       output: jsonSafe(refined.result),
     });
+    const completedAt = new Date();
     await deps.runs.update(runId, {
       status: "completed",
-      completedAt: new Date(),
+      completedAt,
+    });
+    await persistRunTelemetry(deps.events, {
+      runId,
+      agentName: deps.definition.name,
+      status: "completed",
+      metadata: model.metadata,
+      startedAt,
+      completedAt,
     });
 
     return {
@@ -370,11 +397,18 @@ function queueRetry<TResult>(
   return true;
 }
 
+type TerminalContext = {
+  model: ModelProvider;
+  startedAt: Date;
+  agentName: AgentIdentity;
+};
+
 async function fail<TResult>(
   deps: { runs: RunStore; events: EventStore },
   runId: string,
   code: AgentFailureCode,
   message: string,
+  terminal: TerminalContext,
 ): Promise<AgentRunOutcome<TResult>> {
   await recordEvent(deps.events, {
     agentRunId: runId,
@@ -382,7 +416,17 @@ async function fail<TResult>(
     input: { kind: "run_failed", code },
     output: { message },
   });
-  await deps.runs.update(runId, { status: "failed", completedAt: new Date() });
+  const completedAt = new Date();
+  await deps.runs.update(runId, { status: "failed", completedAt });
+  await persistRunTelemetry(deps.events, {
+    runId,
+    agentName: terminal.agentName,
+    status: "failed",
+    failureCode: code,
+    metadata: terminal.model.metadata,
+    startedAt: terminal.startedAt,
+    completedAt,
+  });
   return {
     ok: false,
     status: "failed",
@@ -391,6 +435,65 @@ async function fail<TResult>(
     message,
     events: await deps.events.listByAgentRunId(runId),
   };
+}
+
+async function persistRunTelemetry(
+  events: EventStore,
+  args: {
+    runId: string;
+    agentName: AgentIdentity;
+    status: "completed" | "failed";
+    failureCode?: AgentFailureCode;
+    metadata: ModelProvider["metadata"];
+    startedAt: Date;
+    completedAt: Date;
+  },
+): Promise<void> {
+  try {
+    const listed = await events.listByAgentRunId(args.runId);
+    const snapshot = buildRunTelemetry({
+      runId: args.runId,
+      agentName: args.agentName,
+      status: args.status,
+      failureCode: args.failureCode,
+      metadata: args.metadata,
+      startedAt: args.startedAt,
+      completedAt: args.completedAt,
+      events: listed,
+    });
+    await recordEvent(events, {
+      agentRunId: args.runId,
+      eventType: "policy_decision",
+      input: { kind: RUN_TELEMETRY_KIND },
+      output: snapshot,
+    });
+    logRunTelemetry(snapshot);
+  } catch (error) {
+    logger.warn("agent.run.telemetry_failed", {
+      runId: args.runId,
+      message: error instanceof Error ? error.message : "telemetry persist failed",
+    });
+  }
+}
+
+function logRunTelemetry(snapshot: RunTelemetry): void {
+  logger.info("agent.run.telemetry", {
+    runId: snapshot.runId,
+    agentName: snapshot.agentName,
+    status: snapshot.status,
+    failureCode: snapshot.failureCode,
+    model: snapshot.model,
+    modelVersion: snapshot.modelVersion,
+    inputTokens: snapshot.inputTokens,
+    outputTokens: snapshot.outputTokens,
+    estimatedCostUsd: snapshot.estimatedCostUsd,
+    modelCallCount: snapshot.modelCallCount,
+    toolCallCount: snapshot.toolCallCount,
+    failedToolCallCount: snapshot.failedToolCallCount,
+    modelLatencyMs: snapshot.modelLatencyMs,
+    runDurationMs: snapshot.runDurationMs,
+    modelFailed: snapshot.modelFailed,
+  });
 }
 
 async function recordEvent(events: EventStore, event: CreateAgentEvent): Promise<AgentEvent> {

@@ -19,6 +19,7 @@ describe("createScriptedModelProvider", () => {
     expect(provider.metadata).toMatchObject({
       id: "scripted",
       model: "fake-v1",
+      version: "scripted",
       supportsStructuredOutput: true,
       supportsToolCalling: true,
       supportsStreaming: true,
@@ -94,6 +95,7 @@ describe("createTimedModelProvider", () => {
         id: "failing",
         displayName: "Failing fake",
         model: "failing",
+        version: "failing",
         supportsStructuredOutput: false,
         supportsToolCalling: false,
         supportsStreaming: false,

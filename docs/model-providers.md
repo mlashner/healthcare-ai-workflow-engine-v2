@@ -11,7 +11,7 @@ A provider must support:
 | Structured generation | `complete({ schemaName, jsonSchema? })` returns JSON-shaped `content`. Zod validation stays in the control plane (`decodeStructured`). |
 | Tool calling | Optional `request.tools`. Native vendor tool calls are mapped to CarePilot `{ type: "tool_call", toolName, arguments }` in `content`. The agent loop still executes tools only through the gateway. |
 | Streaming | `stream()` yields `delta` / `tool_call_delta` / `completed`. The coordinator loop uses `complete()`; streaming is for UI or future adapters. |
-| Metadata | `metadata.id`, `model`, and capability flags. |
+| Metadata | `metadata.id`, `model`, `version`, and capability flags. |
 | Token / cost | `completion.usage` (`inputTokens`, `outputTokens`, `estimatedCostUsd`). |
 | Errors | `ModelError` with `PROVIDER_FAILURE`, `EMPTY_RESPONSE`, `TIMEOUT`, `SCHEMA_FAILURE`, `RATE_LIMITED`. |
 

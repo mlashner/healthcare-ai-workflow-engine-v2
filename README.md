@@ -2,9 +2,11 @@
 
 Demonstration healthcare care-coordination platform. **Fictional data only.** Not a medical product and not for clinical use.
 
-This repository implements Architecture B from [`docs/architecture.md`](docs/architecture.md): a constrained agent with a deterministic control plane. The initial application is the control-plane shell only — no AI features yet.
+This repository implements Architecture B from [`docs/architecture.md`](docs/architecture.md): a constrained agent with a deterministic control plane.
 
 Language models are reached only through the `ModelProvider` port. See [`docs/model-providers.md`](docs/model-providers.md) for structured generation, streaming, cost metadata, and the tradeoff between vendor features and a portable adapter.
+
+Each agent run records allowlisted AI metrics (model, tokens, cost, latency, tool counts) with no chart text. The operator view is [`/admin`](http://localhost:3000/admin). See [`docs/observability.md`](docs/observability.md) for what is captured and which production metrics to add next.
 
 ## Stack
 
@@ -33,6 +35,7 @@ npm run dev
 
 - App: [http://localhost:3000](http://localhost:3000)
 - Health: [http://localhost:3000/api/health](http://localhost:3000/api/health)
+- AI observability: [http://localhost:3000/admin](http://localhost:3000/admin)
 
 ## Checks
 

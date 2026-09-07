@@ -6,6 +6,7 @@ import type {
   AuditEvent,
 } from "@/lib/domain";
 import type { Repositories } from "@/lib/db/repositories";
+import { isRunTelemetryEvent } from "@/observability";
 import type { PolicyActor } from "@/policy/action-policy";
 
 import {
@@ -212,6 +213,9 @@ export async function loadAgentTrace(
 }
 
 function mapAgentEvent(event: AgentEvent, toolCallAt: Map<string, Date>): TraceEvent | null {
+  if (isRunTelemetryEvent(event)) {
+    return null;
+  }
   if (event.eventType === "think") {
     return {
       id: event.id,
