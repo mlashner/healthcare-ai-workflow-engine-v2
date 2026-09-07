@@ -57,4 +57,53 @@ describe("validateCareCoordinatorResult", () => {
       expect(check.result.confidence).toBeLessThanOrEqual(0.4);
     }
   });
+
+  it("keeps a single-document citation certain", () => {
+    const secondChunk = "cite:kb_diabetes_followup:1";
+    const check = validateCareCoordinatorResult(
+      result({
+        identifiedConcerns: [
+          {
+            title: "Follow-up window",
+            description: "The fictional encounter mentioned an unplanned visit.",
+            urgency: "medium",
+            citationIds: [citationId, secondChunk],
+          },
+        ],
+        confidence: 0.7,
+      }),
+      { retrievedCitationIds: new Set([citationId, secondChunk]) },
+    );
+
+    expect(check.ok).toBe(true);
+    if (check.ok) {
+      expect(check.result.uncertainty.isUncertain).toBe(false);
+      expect(check.result.confidence).toBe(0.7);
+    }
+  });
+
+  it("marks a finish uncertain when it cites more than one document", () => {
+    const other = "cite:kb_diabetes_hypoglycemia:0";
+    const check = validateCareCoordinatorResult(
+      result({
+        identifiedConcerns: [
+          {
+            title: "No coordination needed",
+            description: "Diabetes follow-up and hypoglycemia cards cancel each other out.",
+            urgency: "none",
+            citationIds: [citationId, other],
+          },
+        ],
+        confidence: 0.88,
+      }),
+      { retrievedCitationIds: new Set([citationId, other]) },
+    );
+
+    expect(check.ok).toBe(true);
+    if (check.ok) {
+      expect(check.result.uncertainty.isUncertain).toBe(true);
+      expect(check.result.confidence).toBeLessThanOrEqual(0.4);
+      expect(check.notes.join(" ")).toMatch(/conflict/i);
+    }
+  });
 });
