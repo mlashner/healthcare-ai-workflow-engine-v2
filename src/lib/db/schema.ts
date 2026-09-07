@@ -13,6 +13,7 @@ import {
   agentEventTypes,
   agentRunStatuses,
   approvalStatuses,
+  auditOutcomes,
   careTaskPriorities,
   careTaskStatuses,
   careTaskTypes,
@@ -32,6 +33,7 @@ export const careTaskStatusEnum = pgEnum("care_task_status", careTaskStatuses);
 export const agentRunStatusEnum = pgEnum("agent_run_status", agentRunStatuses);
 export const agentEventTypeEnum = pgEnum("agent_event_type", agentEventTypes);
 export const approvalStatusEnum = pgEnum("approval_status", approvalStatuses);
+export const auditOutcomeEnum = pgEnum("audit_outcome", auditOutcomes);
 
 /**
  * Control-plane metadata. Domain tables below store fictional demonstration
@@ -159,6 +161,30 @@ export const approvalRequests = pgTable(
   (table) => [index("approval_requests_agent_run_id_idx").on(table.agentRunId)],
 );
 
+export const auditEvents = pgTable(
+  "audit_events",
+  {
+    id: text("id").primaryKey(),
+    agentRunId: text("agent_run_id")
+      .notNull()
+      .references(() => agentRuns.id, { onDelete: "cascade" }),
+    toolName: text("tool_name").notNull(),
+    outcome: auditOutcomeEnum("outcome").notNull(),
+    code: text("code").notNull(),
+    message: text("message").notNull(),
+    actorId: text("actor_id").notNull(),
+    agentName: text("agent_name").notNull(),
+    patientScope: text("patient_scope").notNull(),
+    input: jsonb("input").$type<unknown>(),
+    details: jsonb("details").$type<unknown>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("audit_events_agent_run_id_idx").on(table.agentRunId),
+    index("audit_events_tool_name_idx").on(table.toolName),
+  ],
+);
+
 export const patientsRelations = relations(patients, ({ many }) => ({
   encounters: many(encounters),
   careTasks: many(careTasks),
@@ -184,6 +210,11 @@ export const agentRunsRelations = relations(agentRuns, ({ one, many }) => ({
   patient: one(patients, { fields: [agentRuns.patientId], references: [patients.id] }),
   events: many(agentEvents),
   approvalRequests: many(approvalRequests),
+  auditEvents: many(auditEvents),
+}));
+
+export const auditEventsRelations = relations(auditEvents, ({ one }) => ({
+  agentRun: one(agentRuns, { fields: [auditEvents.agentRunId], references: [agentRuns.id] }),
 }));
 
 export const agentEventsRelations = relations(agentEvents, ({ one }) => ({

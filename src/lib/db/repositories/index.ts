@@ -1,4 +1,5 @@
 import type { Database } from "../client";
+import { createAuditEventRepository } from "./audit-event-repository";
 import { createAgentEventRepository } from "./agent-event-repository";
 import { createAgentRunRepository } from "./agent-run-repository";
 import { createApprovalRequestRepository } from "./approval-request-repository";
@@ -8,6 +9,7 @@ import { createEncounterRepository } from "./encounter-repository";
 import { createPatientRepository } from "./patient-repository";
 import { createProviderRepository } from "./provider-repository";
 
+export { createAuditEventRepository } from "./audit-event-repository";
 export { createAgentEventRepository } from "./agent-event-repository";
 export { createAgentRunRepository } from "./agent-run-repository";
 export { createApprovalRequestRepository } from "./approval-request-repository";
@@ -28,6 +30,7 @@ export function createRepositories(db: Database) {
     agentRuns: createAgentRunRepository(db),
     agentEvents: createAgentEventRepository(db),
     approvalRequests: createApprovalRequestRepository(db),
+    auditEvents: createAuditEventRepository(db),
   };
 }
 

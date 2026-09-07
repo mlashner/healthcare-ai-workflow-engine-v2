@@ -17,12 +17,14 @@ const db = getDb();
 const repos = createRepositories(db);
 
 afterEach(async () => {
-  await db.delete(agentRuns).where(like(agentRuns.id, "test_%"));
-  await db.delete(careTasks).where(like(careTasks.id, "test_%"));
-  await db.delete(encounters).where(like(encounters.id, "test_%"));
-  await db.delete(clinicalDocuments).where(like(clinicalDocuments.id, "test_%"));
-  await db.delete(patients).where(like(patients.id, "test_%"));
-  await db.delete(providers).where(like(providers.id, "test_%"));
+  await db.delete(agentRuns).where(like(agentRuns.id, "test_repo_%"));
+  await db.delete(careTasks).where(like(careTasks.id, "test_repo_%"));
+  await db.delete(careTasks).where(like(careTasks.patientId, "test_repo_%"));
+  await db.delete(encounters).where(like(encounters.id, "test_repo_%"));
+  await db.delete(encounters).where(like(encounters.patientId, "test_repo_%"));
+  await db.delete(clinicalDocuments).where(like(clinicalDocuments.id, "test_repo_%"));
+  await db.delete(patients).where(like(patients.id, "test_repo_%"));
+  await db.delete(providers).where(like(providers.id, "test_repo_%"));
 });
 
 afterAll(async () => {
@@ -30,7 +32,7 @@ afterAll(async () => {
 });
 
 function testId(label: string): string {
-  return `test_${label}_${crypto.randomUUID()}`;
+  return `test_repo_${label}_${crypto.randomUUID()}`;
 }
 
 async function createChart() {

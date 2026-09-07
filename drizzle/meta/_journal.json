@@ -15,6 +15,13 @@
       "when": 1788739475012,
       "tag": "0001_cool_shiva",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788741602722,
+      "tag": "0002_silky_nitro",
+      "breakpoints": true
     }
   ]
 }

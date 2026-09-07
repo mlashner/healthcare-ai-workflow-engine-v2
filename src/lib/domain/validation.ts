@@ -2,8 +2,10 @@ import { z } from "zod";
 
 import {
   agentEventTypes,
+  agentIdentities,
   agentRunStatuses,
   approvalStatuses,
+  auditOutcomes,
   careTaskPriorities,
   careTaskStatuses,
   careTaskTypes,
@@ -195,6 +197,29 @@ export const createApprovalRequestSchema = approvalRequestSchema
     reason: z.string().min(1).max(2000).nullable().optional(),
   });
 
+export const auditEventSchema = z.object({
+  id: entityIdSchema,
+  agentRunId: entityIdSchema,
+  toolName: z.string().min(1).max(100),
+  outcome: z.enum(auditOutcomes),
+  code: z.string().min(1).max(64),
+  message: z.string().min(1).max(2000),
+  actorId: entityIdSchema,
+  agentName: z.enum(agentIdentities),
+  patientScope: entityIdSchema,
+  input: z.unknown(),
+  details: z.unknown(),
+  createdAt: timestampSchema,
+});
+
+export const createAuditEventSchema = auditEventSchema
+  .omit({ id: true, createdAt: true })
+  .extend({
+    id: entityIdSchema.optional(),
+    input: z.unknown().optional(),
+    details: z.unknown().optional(),
+  });
+
 export const updateApprovalRequestSchema = z.object({
   status: z.enum(approvalStatuses).optional(),
   reviewedAt: timestampSchema.nullable().optional(),
@@ -225,6 +250,8 @@ export type CreateAgentEvent = z.input<typeof createAgentEventSchema>;
 export type ApprovalRequest = z.output<typeof approvalRequestSchema>;
 export type CreateApprovalRequest = z.input<typeof createApprovalRequestSchema>;
 export type UpdateApprovalRequest = z.input<typeof updateApprovalRequestSchema>;
+export type AuditEvent = z.output<typeof auditEventSchema>;
+export type CreateAuditEvent = z.input<typeof createAuditEventSchema>;
 
 function isCalendarDate(value: string): boolean {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);

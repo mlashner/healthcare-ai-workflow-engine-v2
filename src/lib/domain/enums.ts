@@ -53,6 +53,24 @@ export const agentEventTypes = [
 
 export const approvalStatuses = ["pending", "approved", "rejected"] as const;
 
+export const approvalActionTypes = [
+  "propose_referral",
+  "schedule_outreach",
+  "notify_care_team",
+] as const;
+
+export const agentIdentities = ["care_coordinator", "safety_reviewer"] as const;
+
+export const actorRoles = [...providerRoles, "system"] as const;
+
+export const auditOutcomes = [
+  "executed",
+  "denied",
+  "validation_error",
+  "unknown_tool",
+  "execution_error",
+] as const;
+
 export type ProviderRole = (typeof providerRoles)[number];
 export type ClinicalDocumentSource = (typeof clinicalDocumentSources)[number];
 export type CareTaskType = (typeof careTaskTypes)[number];
@@ -61,3 +79,7 @@ export type CareTaskStatus = (typeof careTaskStatuses)[number];
 export type AgentRunStatus = (typeof agentRunStatuses)[number];
 export type AgentEventType = (typeof agentEventTypes)[number];
 export type ApprovalStatus = (typeof approvalStatuses)[number];
+export type ApprovalActionType = (typeof approvalActionTypes)[number];
+export type AgentIdentity = (typeof agentIdentities)[number];
+export type ActorRole = (typeof actorRoles)[number];
+export type AuditOutcome = (typeof auditOutcomes)[number];
