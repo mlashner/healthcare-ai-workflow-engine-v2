@@ -122,6 +122,7 @@ describe("createClinicalDocumentSchema", () => {
     });
 
     expect(document.version).toBe("1");
+    expect(document.topics).toEqual([]);
   });
 
   it("rejects an unknown source", () => {

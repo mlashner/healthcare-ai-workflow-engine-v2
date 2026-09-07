@@ -3,8 +3,10 @@ import { desc, eq } from "drizzle-orm";
 import {
   clinicalDocumentSchema,
   createClinicalDocumentSchema,
+  updateClinicalDocumentSchema,
   type ClinicalDocument,
   type CreateClinicalDocument,
+  type UpdateClinicalDocument,
 } from "@/lib/domain";
 
 import type { Database } from "../client";
@@ -23,6 +25,7 @@ export function createClinicalDocumentRepository(db: Database) {
           content: data.content,
           source: data.source,
           version: data.version,
+          topics: data.topics,
         })
         .returning();
 
@@ -46,6 +49,17 @@ export function createClinicalDocumentRepository(db: Database) {
         .orderBy(desc(clinicalDocuments.createdAt));
 
       return rows.map((row) => clinicalDocumentSchema.parse(row));
+    },
+
+    async update(id: string, input: UpdateClinicalDocument): Promise<ClinicalDocument | null> {
+      const data = updateClinicalDocumentSchema.parse(input);
+      const [row] = await db
+        .update(clinicalDocuments)
+        .set(data)
+        .where(eq(clinicalDocuments.id, id))
+        .returning();
+
+      return row ? clinicalDocumentSchema.parse(row) : null;
     },
   };
 }

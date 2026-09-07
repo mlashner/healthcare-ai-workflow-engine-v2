@@ -3,10 +3,10 @@ import type { ToolInvocationContext } from "@/authz/types";
 import type {
   ApprovalStore,
   CareTaskStore,
-  ClinicalDocumentReader,
   EncounterReader,
   PatientReader,
 } from "./services";
+import type { KnowledgeSearch } from "@/retrieval/search";
 import {
   createCarePlanService,
   createCareTaskService,
@@ -68,8 +68,8 @@ export function createGetCarePlanTool(careTasks: CareTaskStore) {
   });
 }
 
-export function createSearchClinicalKnowledgeTool(documents: ClinicalDocumentReader) {
-  const service = createClinicalKnowledgeService(documents);
+export function createSearchClinicalKnowledgeTool(search: KnowledgeSearch) {
+  const service = createClinicalKnowledgeService(search);
   return defineTool({
     name: "searchClinicalKnowledge",
     inputSchema: searchClinicalKnowledgeInputSchema,

@@ -10,6 +10,7 @@ import {
   careTaskStatuses,
   careTaskTypes,
   clinicalDocumentSources,
+  knowledgeTopics,
   providerRoles,
 } from "./enums";
 
@@ -94,6 +95,7 @@ export const clinicalDocumentSchema = z.object({
   content: z.string().min(1).max(50_000),
   source: z.enum(clinicalDocumentSources),
   version: z.string().min(1).max(50),
+  topics: z.array(z.enum(knowledgeTopics)),
   createdAt: timestampSchema,
 });
 
@@ -102,7 +104,33 @@ export const createClinicalDocumentSchema = clinicalDocumentSchema
   .extend({
     id: entityIdSchema.optional(),
     version: z.string().min(1).max(50).default("1"),
+    topics: z.array(z.enum(knowledgeTopics)).default([]),
   });
+
+export const updateClinicalDocumentSchema = z.object({
+  title: z.string().min(1).max(300).optional(),
+  content: z.string().min(1).max(50_000).optional(),
+  source: z.enum(clinicalDocumentSources).optional(),
+  version: z.string().min(1).max(50).optional(),
+  topics: z.array(z.enum(knowledgeTopics)).optional(),
+});
+
+export const citationIdSchema = z
+  .string()
+  .regex(/^cite:[A-Za-z0-9_-]+:\d+$/, "expected cite:{documentId}:{chunkIndex}");
+
+export const documentChunkSchema = z.object({
+  id: entityIdSchema,
+  documentId: entityIdSchema,
+  chunkIndex: z.number().int().min(0),
+  citationId: citationIdSchema,
+  content: z.string().min(1).max(10_000),
+  embedding: z.array(z.number()),
+  source: z.enum(clinicalDocumentSources),
+  version: z.string().min(1).max(50),
+  topics: z.array(z.enum(knowledgeTopics)),
+  createdAt: timestampSchema,
+});
 
 export const careTaskSchema = z.object({
   id: entityIdSchema,
@@ -239,6 +267,8 @@ export type Encounter = z.output<typeof encounterSchema>;
 export type CreateEncounter = z.input<typeof createEncounterSchema>;
 export type ClinicalDocument = z.output<typeof clinicalDocumentSchema>;
 export type CreateClinicalDocument = z.input<typeof createClinicalDocumentSchema>;
+export type UpdateClinicalDocument = z.input<typeof updateClinicalDocumentSchema>;
+export type DocumentChunk = z.output<typeof documentChunkSchema>;
 export type CareTask = z.output<typeof careTaskSchema>;
 export type CreateCareTask = z.input<typeof createCareTaskSchema>;
 export type UpdateCareTask = z.input<typeof updateCareTaskSchema>;

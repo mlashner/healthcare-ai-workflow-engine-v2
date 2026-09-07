@@ -6,7 +6,7 @@ This repository implements Architecture B from [`docs/architecture.md`](docs/arc
 
 ## Stack
 
-TypeScript, Next.js, PostgreSQL, Drizzle ORM, Zod, Vitest, Playwright. Local PostgreSQL runs in Docker.
+TypeScript, Next.js, PostgreSQL with pgvector, Drizzle ORM, Zod, Vitest, Playwright. Local PostgreSQL runs in Docker.
 
 ## Prerequisites
 
@@ -25,7 +25,9 @@ npm run db:seed       # fictional demonstration patients and documents
 npm run dev
 ```
 
-`docker-compose.yml` runs PostgreSQL only. The Next.js app stays on the host. If Docker is not available, create a `carepilot` role and database locally and keep `DATABASE_URL` pointed at it.
+`docker-compose.yml` runs PostgreSQL with the `pgvector` extension. The Next.js app stays on the host. If Docker is not available, create a `carepilot` role and database locally, enable `CREATE EXTENSION vector`, and keep `DATABASE_URL` pointed at it.
+
+`npm run db:seed` ingests 24 fictional clinical knowledge documents, chunks them, and stores lexical embeddings for semantic search. The corpus is demonstration text only and is not medical advice.
 
 - App: [http://localhost:3000](http://localhost:3000)
 - Health: [http://localhost:3000/api/health](http://localhost:3000/api/health)

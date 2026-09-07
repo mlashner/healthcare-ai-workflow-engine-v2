@@ -1,8 +1,8 @@
 import type { ToolInvocationContext } from "@/authz/types";
+import type { KnowledgeSearch } from "@/retrieval/search";
 import type {
   ApprovalRequest,
   CareTask,
-  ClinicalDocument,
   CreateApprovalRequest,
   CreateCareTask,
   Encounter,
@@ -37,10 +37,6 @@ export type EncounterReader = {
 export type CareTaskStore = {
   create(input: CreateCareTask): Promise<CareTask>;
   listByPatientId(patientId: string): Promise<CareTask[]>;
-};
-
-export type ClinicalDocumentReader = {
-  list(): Promise<ClinicalDocument[]>;
 };
 
 export type ApprovalStore = {
@@ -105,26 +101,12 @@ export function createCarePlanService(careTasks: CareTaskStore) {
   };
 }
 
-export function createClinicalKnowledgeService(documents: ClinicalDocumentReader) {
+export function createClinicalKnowledgeService(search: KnowledgeSearch) {
   return {
     async execute(input: SearchClinicalKnowledgeInput) {
-      const query = input.query.trim().toLowerCase();
-      const matches = (await documents.list()).filter((document) => {
-        return (
-          document.title.toLowerCase().includes(query) ||
-          document.content.toLowerCase().includes(query)
-        );
-      });
-
       return {
         query: input.query,
-        results: matches.map((document) => ({
-          id: document.id,
-          title: document.title,
-          source: document.source,
-          version: document.version,
-          snippet: excerpt(document.content, 280),
-        })),
+        results: await search.search(input),
       } satisfies SearchClinicalKnowledgeOutput;
     },
   };
@@ -213,9 +195,3 @@ export function createHumanApprovalService(approvals: ApprovalStore) {
   };
 }
 
-function excerpt(content: string, maxLength: number): string {
-  if (content.length <= maxLength) {
-    return content;
-  }
-  return `${content.slice(0, maxLength - 1)}…`;
-}

@@ -1,3 +1,7 @@
+import { fictionalKnowledgeCorpus } from "@/retrieval/corpus";
+import { createLexicalEmbedder } from "@/retrieval/embedder";
+import { ingestKnowledgeCorpus } from "@/retrieval/ingest";
+
 import { closeDb, getDb } from "./client";
 import { createRepositories } from "./repositories";
 
@@ -22,9 +26,9 @@ export const seedIds = {
     marcusAsthma: "encounter_fictional_marcus_asthma",
   },
   documents: {
-    diabetesFollowUp: "document_fictional_diabetes_followup",
-    asthmaReference: "document_fictional_asthma_reference",
-    outreachPolicy: "document_fictional_outreach_policy",
+    diabetesFollowUp: "kb_diabetes_followup",
+    asthmaReference: "kb_asthma_rescue",
+    outreachPolicy: "kb_outreach_policy",
   },
   careTasks: {
     avaFollowUp: "task_fictional_ava_followup",
@@ -125,29 +129,10 @@ export async function seedFictionalData(db = getDb()): Promise<void> {
     ].join("\n"),
   });
 
-  await upsertDocument(repos, {
-    id: seedIds.documents.diabetesFollowUp,
-    title: "Fictional diabetes follow-up interval",
-    source: "guideline",
-    version: "demo-1",
-    content:
-      "DEMO ONLY — not a clinical guideline. In this fictional corpus, adults with type 2 diabetes and an unplanned visit are flagged for care-coordination follow-up within 14 days.",
-  });
-  await upsertDocument(repos, {
-    id: seedIds.documents.asthmaReference,
-    title: "Fictional asthma outreach reference",
-    source: "reference",
-    version: "demo-1",
-    content:
-      "DEMO ONLY — not medical advice. Frequent rescue-inhaler use in this fictional corpus is a reason to propose patient outreach and education, subject to human approval.",
-  });
-  await upsertDocument(repos, {
-    id: seedIds.documents.outreachPolicy,
-    title: "Fictional care-team outreach policy",
-    source: "policy",
-    version: "demo-1",
-    content:
-      "DEMO ONLY. Notify-care-team and schedule-outreach actions are consequential. They require a pending approval record and a human reviewer. The model cannot authorize them.",
+  await ingestKnowledgeCorpus(fictionalKnowledgeCorpus, {
+    documents: repos.clinicalDocuments,
+    chunks: repos.documentChunks,
+    embedder: createLexicalEmbedder(),
   });
 
   await upsertCareTask(repos, {
@@ -247,17 +232,6 @@ async function upsertEncounter(
     return existing;
   }
   return repos.encounters.create(input);
-}
-
-async function upsertDocument(
-  repos: ReturnType<typeof createRepositories>,
-  input: Parameters<typeof repos.clinicalDocuments.create>[0],
-) {
-  const existing = input.id ? await repos.clinicalDocuments.getById(input.id) : null;
-  if (existing) {
-    return existing;
-  }
-  return repos.clinicalDocuments.create(input);
 }
 
 async function upsertCareTask(

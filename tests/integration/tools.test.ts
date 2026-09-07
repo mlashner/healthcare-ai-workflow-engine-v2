@@ -179,11 +179,14 @@ describe("tool gateway integration", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      const output = result.output as { results: Array<{ id: string; snippet: string }> };
-      expect(output.results.some((item) => item.id === seedIds.documents.diabetesFollowUp)).toBe(
-        true,
-      );
-      expect(output.results[0]?.snippet).toBeTruthy();
+      const output = result.output as {
+        results: Array<{ documentId: string; citationId: string; relevantText: string }>;
+      };
+      expect(
+        output.results.some((item) => item.documentId === seedIds.documents.diabetesFollowUp),
+      ).toBe(true);
+      expect(output.results[0]?.citationId).toMatch(/^cite:/);
+      expect(output.results[0]?.relevantText).toContain("DEMO ONLY");
     }
   });
 

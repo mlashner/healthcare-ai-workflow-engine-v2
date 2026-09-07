@@ -4,8 +4,10 @@ import {
   approvalActionTypes,
   careTaskPriorities,
   careTaskTypes,
+  citationIdSchema,
   clinicalDocumentSources,
   entityIdSchema,
+  knowledgeTopics,
 } from "@/lib/domain";
 
 const patientIdField = {
@@ -71,6 +73,11 @@ export const getCarePlanOutputSchema = z.object({
 export const searchClinicalKnowledgeInputSchema = z
   .object({
     query: z.string().min(2).max(200),
+    limit: z.number().int().min(1).max(10).optional(),
+    minSimilarity: z.number().min(0).max(1).optional(),
+    source: z.enum(clinicalDocumentSources).optional(),
+    version: z.string().min(1).max(50).optional(),
+    topic: z.enum(knowledgeTopics).optional(),
   })
   .strict();
 
@@ -78,11 +85,13 @@ export const searchClinicalKnowledgeOutputSchema = z.object({
   query: z.string(),
   results: z.array(
     z.object({
-      id: entityIdSchema,
+      documentId: entityIdSchema,
       title: z.string(),
+      relevantText: z.string(),
+      similarityScore: z.number(),
       source: z.enum(clinicalDocumentSources),
       version: z.string(),
-      snippet: z.string(),
+      citationId: citationIdSchema,
     }),
   ),
 });

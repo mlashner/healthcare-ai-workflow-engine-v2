@@ -2,11 +2,14 @@ import { relations } from "drizzle-orm";
 import {
   date,
   index,
+  integer,
   jsonb,
   pgEnum,
   pgTable,
   text,
   timestamp,
+  unique,
+  vector,
 } from "drizzle-orm/pg-core";
 
 import {
@@ -19,6 +22,7 @@ import {
   careTaskTypes,
   clinicalDocumentSources,
   providerRoles,
+  type KnowledgeTopic,
 } from "../domain/enums";
 import type { ApprovalAction, Condition, Medication } from "../domain/validation";
 
@@ -80,6 +84,8 @@ export const encounters = pgTable(
   ],
 );
 
+export const EMBEDDING_DIMENSIONS = 64;
+
 export const clinicalDocuments = pgTable(
   "clinical_documents",
   {
@@ -88,9 +94,34 @@ export const clinicalDocuments = pgTable(
     content: text("content").notNull(),
     source: clinicalDocumentSourceEnum("source").notNull(),
     version: text("version").notNull(),
+    topics: jsonb("topics").$type<KnowledgeTopic[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("clinical_documents_source_idx").on(table.source)],
+);
+
+export const documentChunks = pgTable(
+  "document_chunks",
+  {
+    id: text("id").primaryKey(),
+    documentId: text("document_id")
+      .notNull()
+      .references(() => clinicalDocuments.id, { onDelete: "cascade" }),
+    chunkIndex: integer("chunk_index").notNull(),
+    citationId: text("citation_id").notNull(),
+    content: text("content").notNull(),
+    embedding: vector("embedding", { dimensions: EMBEDDING_DIMENSIONS }).notNull(),
+    source: clinicalDocumentSourceEnum("source").notNull(),
+    version: text("version").notNull(),
+    topics: jsonb("topics").$type<KnowledgeTopic[]>().notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("document_chunks_document_id_chunk_index_uidx").on(table.documentId, table.chunkIndex),
+    unique("document_chunks_citation_id_uidx").on(table.citationId),
+    index("document_chunks_document_id_idx").on(table.documentId),
+    index("document_chunks_source_idx").on(table.source),
+  ],
 );
 
 export const careTasks = pgTable(
@@ -184,6 +215,17 @@ export const auditEvents = pgTable(
     index("audit_events_tool_name_idx").on(table.toolName),
   ],
 );
+
+export const clinicalDocumentsRelations = relations(clinicalDocuments, ({ many }) => ({
+  chunks: many(documentChunks),
+}));
+
+export const documentChunksRelations = relations(documentChunks, ({ one }) => ({
+  document: one(clinicalDocuments, {
+    fields: [documentChunks.documentId],
+    references: [clinicalDocuments.id],
+  }),
+}));
 
 export const patientsRelations = relations(patients, ({ many }) => ({
   encounters: many(encounters),

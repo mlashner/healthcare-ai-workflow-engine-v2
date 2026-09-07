@@ -14,6 +14,19 @@ export const clinicalDocumentSources = [
   "reference",
 ] as const;
 
+export const knowledgeTopics = [
+  "medication_side_effects",
+  "nutrition",
+  "diabetes",
+  "hypertension",
+  "fall_risk",
+  "care_escalation",
+  "patient_communication",
+  "medication_adherence",
+  "asthma",
+  "heart_failure",
+] as const;
+
 export const careTaskTypes = [
   "referral",
   "outreach",
@@ -73,6 +86,7 @@ export const auditOutcomes = [
 
 export type ProviderRole = (typeof providerRoles)[number];
 export type ClinicalDocumentSource = (typeof clinicalDocumentSources)[number];
+export type KnowledgeTopic = (typeof knowledgeTopics)[number];
 export type CareTaskType = (typeof careTaskTypes)[number];
 export type CareTaskPriority = (typeof careTaskPriorities)[number];
 export type CareTaskStatus = (typeof careTaskStatuses)[number];
