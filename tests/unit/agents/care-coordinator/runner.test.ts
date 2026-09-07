@@ -431,6 +431,34 @@ describe("care coordinator runner", () => {
     });
   });
 
+  it("wraps retrieved tool output as untrusted data", async () => {
+    const { runner, events } = createRunner({
+      script: [
+        {
+          type: "tool_call",
+          toolName: "getPatientContext",
+          arguments: { patientId },
+        },
+        { type: "finish", result: uncertainResult() },
+      ],
+      gateway: scriptedGateway((toolName) => ({
+        ok: true,
+        toolName,
+        output: {
+          patientId,
+          name: "In Scope (FICTIONAL)",
+          dateOfBirth: "1978-06-21",
+          conditions: [],
+          medications: [],
+        },
+      })),
+    });
+
+    await runCoordinator(runner);
+    const resultEvent = events.events.find((event) => event.eventType === "tool_result");
+    expect(JSON.stringify(resultEvent?.output)).toContain("untrusted_data");
+  });
+
   it("does not import a database client from the agent or model packages", () => {
     const files = [
       "src/agents/runner.ts",

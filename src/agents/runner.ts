@@ -18,6 +18,8 @@ import type { RetrievedSnippet } from "@/safety";
 import type { ToolInvocationResult } from "@/tools/types";
 import type { z } from "zod";
 
+import { wrapToolOutput } from "./untrusted";
+
 export type ToolInvoker = {
   invoke(
     toolName: string,
@@ -357,7 +359,7 @@ function toObservation(result: ToolInvocationResult): unknown {
       type: "tool_observation",
       toolName: result.toolName,
       ok: true,
-      output: jsonSafe(result.output),
+      output: wrapToolOutput(result.toolName, jsonSafe(result.output)),
     });
   }
 
