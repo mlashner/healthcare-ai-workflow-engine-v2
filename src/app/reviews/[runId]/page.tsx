@@ -73,6 +73,7 @@ export default async function ReviewPage({
       <p className="muted">
         Reviewing as {clinician.name} ({clinician.actor.role}) &middot; run{" "}
         <span className="hash">{review.run.id}</span> &middot;{" "}
+        <Link href={`/reviews/${review.run.id}/trace`}>Agent trace</Link> &middot;{" "}
         <Link href="/reviews">All runs</Link>
       </p>
 

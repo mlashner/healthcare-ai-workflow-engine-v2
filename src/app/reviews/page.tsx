@@ -76,6 +76,8 @@ export default async function ReviewsPage() {
               <Link href={`/reviews/${run.id}`}>
                 {run.agentName} &middot; {run.status}
               </Link>
+              {" · "}
+              <Link href={`/reviews/${run.id}/trace`}>Trace</Link>
               <p className="hash">
                 {run.id} &middot; patient {run.patientId} &middot;{" "}
                 {run.startedAt.toISOString()}

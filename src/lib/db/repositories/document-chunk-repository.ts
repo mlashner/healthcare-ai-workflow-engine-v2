@@ -31,18 +31,19 @@ export function createDocumentChunkRepository(db: Database) {
       documentId: string,
       rows: Array<Omit<DocumentChunk, "createdAt"> & { createdAt?: Date }>,
     ): Promise<void> {
-      await db.delete(documentChunks).where(eq(documentChunks.documentId, documentId));
       if (rows.length === 0) {
+        await db.delete(documentChunks).where(eq(documentChunks.documentId, documentId));
         return;
       }
-      // Chunk ids are derived from the document, so re-ingesting the same
-      // corpus concurrently must converge rather than collide.
+      // Upsert by primary key so concurrent seeders of the same corpus
+      // converge. Chunk ids are derived from document id and index.
       await db
         .insert(documentChunks)
         .values(rows)
         .onConflictDoUpdate({
           target: documentChunks.id,
           set: {
+            documentId: sql`excluded.document_id`,
             chunkIndex: sql`excluded.chunk_index`,
             citationId: sql`excluded.citation_id`,
             content: sql`excluded.content`,

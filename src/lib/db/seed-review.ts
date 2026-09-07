@@ -111,6 +111,65 @@ export async function seedReviewFixture(
   };
 
   const events = await repos.agentEvents.listByAgentRunId(runId);
+  if (!events.some((event) => event.eventType === "think")) {
+    await repos.agentEvents.create({
+      agentRunId: runId,
+      eventType: "think",
+      input: { kind: "model_invocation", iteration: 1, schemaName: "CareCoordinatorStep" },
+      output: { type: "think", thought: "Gather fictional chart context before proposing anything." },
+      timestamp: new Date("2026-09-02T15:00:01.000Z"),
+    });
+  }
+  if (!events.some((event) => event.eventType === "tool_call" && event.toolName === "getPatientContext")) {
+    await repos.agentEvents.create({
+      agentRunId: runId,
+      eventType: "tool_call",
+      toolName: "getPatientContext",
+      input: { patientId },
+      timestamp: new Date("2026-09-02T15:00:02.000Z"),
+    });
+    await repos.agentEvents.create({
+      agentRunId: runId,
+      eventType: "tool_result",
+      toolName: "getPatientContext",
+      input: { patientId },
+      output: {
+        type: "tool_observation",
+        toolName: "getPatientContext",
+        ok: true,
+        output: { type: "untrusted_data", source: "getPatientContext", data: { patientId } },
+      },
+      timestamp: new Date("2026-09-02T15:00:03.000Z"),
+    });
+  }
+  if (
+    !events.some((event) => event.eventType === "tool_call" && event.toolName === "searchClinicalKnowledge")
+  ) {
+    await repos.agentEvents.create({
+      agentRunId: runId,
+      eventType: "tool_call",
+      toolName: "searchClinicalKnowledge",
+      input: { query: "diabetes follow-up after an unplanned clinic visit" },
+      timestamp: new Date("2026-09-02T15:00:04.000Z"),
+    });
+    await repos.agentEvents.create({
+      agentRunId: runId,
+      eventType: "tool_result",
+      toolName: "searchClinicalKnowledge",
+      input: { query: "diabetes follow-up after an unplanned clinic visit" },
+      output: {
+        type: "tool_observation",
+        toolName: "searchClinicalKnowledge",
+        ok: true,
+        output: {
+          type: "untrusted_data",
+          source: "searchClinicalKnowledge",
+          data: { query: "diabetes follow-up", results: [{ citationId: reviewFixture.citationId }] },
+        },
+      },
+      timestamp: new Date("2026-09-02T15:00:05.000Z"),
+    });
+  }
   if (!events.some((event) => event.eventType === "finish")) {
     await repos.agentEvents.create({
       agentRunId: runId,
