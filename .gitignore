@@ -7,6 +7,8 @@ coverage
 playwright-report
 test-results
 blob-report
+eval/results/*.json
+eval/results/*.md
 .env
 .env.local
 .env.*.local

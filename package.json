@@ -13,6 +13,7 @@
     "test:watch": "vitest tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:e2e": "playwright test",
+    "eval": "tsx src/eval/cli.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/lib/db/seed.ts"

@@ -40,4 +40,7 @@ npm run lint
 npm test                 # unit tests
 npm run test:integration # requires migrated local Postgres
 npm run test:e2e         # Playwright; starts the Next.js app
+npm run eval             # CarePilot evaluation suite (in-memory, no Postgres)
 ```
+
+`npm run eval` runs 32 fictional patient scenarios against the care-coordinator agent with a scripted model, scores control-plane behavior, and writes a comparable report to `eval/results/`. It establishes a baseline; it does not tune the agent.
