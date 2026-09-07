@@ -37,6 +37,16 @@ export function createAgentRunRepository(db: Database) {
       return row ? agentRunSchema.parse(row) : null;
     },
 
+    async listRecent(limit = 20): Promise<AgentRun[]> {
+      const rows = await db
+        .select()
+        .from(agentRuns)
+        .orderBy(desc(agentRuns.startedAt))
+        .limit(limit);
+
+      return rows.map((row) => agentRunSchema.parse(row));
+    },
+
     async listByPatientId(patientId: string): Promise<AgentRun[]> {
       const rows = await db
         .select()

@@ -4,6 +4,7 @@ import { ingestKnowledgeCorpus } from "@/retrieval/ingest";
 
 import { closeDb, getDb } from "./client";
 import { createRepositories } from "./repositories";
+import { seedReviewFixture } from "./seed-review";
 
 /**
  * Stable identifiers for the fictional demonstration corpus.
@@ -36,6 +37,7 @@ export const seedIds = {
   },
   agentRuns: {
     avaCoordinator: "run_fictional_ava_coordinator",
+    avaReview: "run_fictional_ava_review",
   },
   agentEvents: {
     retrieveContext: "event_fictional_ava_retrieve",
@@ -193,6 +195,11 @@ export async function seedFictionalData(db = getDb()): Promise<void> {
       },
     },
     requestedAt: new Date("2026-08-28T16:00:11.000Z"),
+  });
+
+  await seedReviewFixture(db, {
+    runId: seedIds.agentRuns.avaReview,
+    patientId: seedIds.patients.ava,
   });
 }
 

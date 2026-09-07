@@ -35,7 +35,34 @@ export function createDocumentChunkRepository(db: Database) {
       if (rows.length === 0) {
         return;
       }
-      await db.insert(documentChunks).values(rows);
+      // Chunk ids are derived from the document, so re-ingesting the same
+      // corpus concurrently must converge rather than collide.
+      await db
+        .insert(documentChunks)
+        .values(rows)
+        .onConflictDoUpdate({
+          target: documentChunks.id,
+          set: {
+            chunkIndex: sql`excluded.chunk_index`,
+            citationId: sql`excluded.citation_id`,
+            content: sql`excluded.content`,
+            embedding: sql`excluded.embedding`,
+            source: sql`excluded.source`,
+            version: sql`excluded.version`,
+            topics: sql`excluded.topics`,
+          },
+        });
+    },
+
+    async getByCitationId(citationId: string): Promise<{ chunk: DocumentChunk; title: string } | null> {
+      const [row] = await db
+        .select({ chunk: documentChunks, title: clinicalDocuments.title })
+        .from(documentChunks)
+        .innerJoin(clinicalDocuments, eq(documentChunks.documentId, clinicalDocuments.id))
+        .where(eq(documentChunks.citationId, citationId))
+        .limit(1);
+
+      return row ? { chunk: documentChunkSchema.parse(row.chunk), title: row.title } : null;
     },
 
     async listByDocumentId(documentId: string): Promise<DocumentChunk[]> {

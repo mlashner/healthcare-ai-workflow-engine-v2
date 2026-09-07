@@ -1,10 +1,11 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import {
   approvalRequestSchema,
   createApprovalRequestSchema,
   updateApprovalRequestSchema,
   type ApprovalRequest,
+  type ApprovalStatus,
   type CreateApprovalRequest,
   type UpdateApprovalRequest,
 } from "@/lib/domain";
@@ -55,11 +56,54 @@ export function createApprovalRequestRepository(db: Database) {
     },
 
     async update(id: string, input: UpdateApprovalRequest): Promise<ApprovalRequest | null> {
-      const data = updateApprovalRequestSchema.parse(input);
+      const parsed = updateApprovalRequestSchema.parse(input);
+      const data = Object.fromEntries(
+        Object.entries(parsed).filter(([, value]) => value !== undefined),
+      );
+      if (Object.keys(data).length === 0) {
+        const [current] = await db
+          .select()
+          .from(approvalRequests)
+          .where(eq(approvalRequests.id, id))
+          .limit(1);
+        return current ? approvalRequestSchema.parse(current) : null;
+      }
+
       const [row] = await db
         .update(approvalRequests)
         .set(data)
         .where(eq(approvalRequests.id, id))
+        .returning();
+
+      return row ? approvalRequestSchema.parse(row) : null;
+    },
+
+    /**
+     * Compare-and-set: apply the update only when the row is still in
+     * `expectedStatus`. Zero rows returned means another request won the race.
+     */
+    async updateIfStatus(
+      id: string,
+      expectedStatus: ApprovalStatus,
+      input: UpdateApprovalRequest,
+    ): Promise<ApprovalRequest | null> {
+      const parsed = updateApprovalRequestSchema.parse(input);
+      const data = Object.fromEntries(
+        Object.entries(parsed).filter(([, value]) => value !== undefined),
+      );
+      if (Object.keys(data).length === 0) {
+        const [current] = await db
+          .select()
+          .from(approvalRequests)
+          .where(and(eq(approvalRequests.id, id), eq(approvalRequests.status, expectedStatus)))
+          .limit(1);
+        return current ? approvalRequestSchema.parse(current) : null;
+      }
+
+      const [row] = await db
+        .update(approvalRequests)
+        .set(data)
+        .where(and(eq(approvalRequests.id, id), eq(approvalRequests.status, expectedStatus)))
         .returning();
 
       return row ? approvalRequestSchema.parse(row) : null;

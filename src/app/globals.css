@@ -3,6 +3,19 @@
   background: #f6f4ef;
   font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
   line-height: 1.5;
+
+  --retrieved-ink: #1d4e6f;
+  --retrieved-wash: #e8f2f8;
+  --reasoning-ink: #5b3d8c;
+  --reasoning-wash: #f1ecfa;
+  --proposal-ink: #8a5200;
+  --proposal-wash: #fdf2df;
+  --policy-ink: #0f5c52;
+  --policy-wash: #e5f4f0;
+  --human-ink: #2a3a86;
+  --human-wash: #eceffb;
+  --executed-ink: #1c5b2c;
+  --executed-wash: #e8f5ea;
 }
 
 body {
@@ -13,4 +26,295 @@ body {
 
 a {
   color: #0b5cab;
+}
+
+.review-shell {
+  max-width: 64rem;
+  margin: 0 auto;
+}
+
+/* Fictional-data and scope-of-use notice. */
+.demo-banner {
+  border: 1px solid #b48b2f;
+  background: #fdf6e3;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+/*
+ * The central claim of this screen: nothing on it has happened unless it is
+ * marked as executed.
+ */
+.not-executed-banner {
+  border: 2px solid #8a5200;
+  background: var(--proposal-wash);
+  color: var(--proposal-ink);
+  padding: 1rem 1.25rem;
+  border-radius: 0.5rem;
+  margin: 1.25rem 0;
+}
+
+.not-executed-banner h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+}
+
+.not-executed-banner p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.provenance-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.75rem 0 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.review-section {
+  border: 1px solid #d8d2c4;
+  background: #fffdf8;
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.review-section > h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #4a5560;
+}
+
+.review-section .section-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  color: #67727d;
+}
+
+/* Provenance blocks. Each source of truth gets its own colour and label so a
+ * reviewer never has to guess where a statement came from. */
+.provenance {
+  border-left: 4px solid currentColor;
+  border-radius: 0.375rem;
+  padding: 0.6rem 0.85rem;
+  margin: 0.5rem 0;
+}
+
+.provenance-tag {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.25rem;
+  border: 1px solid currentColor;
+}
+
+.provenance-body {
+  color: #14202b;
+  font-size: 0.9375rem;
+}
+
+.provenance-body > :first-child {
+  margin-top: 0.4rem;
+}
+
+.provenance-body > :last-child {
+  margin-bottom: 0;
+}
+
+.provenance[data-provenance="retrieved"] {
+  color: var(--retrieved-ink);
+  background: var(--retrieved-wash);
+}
+
+.provenance[data-provenance="reasoning"] {
+  color: var(--reasoning-ink);
+  background: var(--reasoning-wash);
+  border-left-style: dashed;
+}
+
+.provenance[data-provenance="proposal"] {
+  color: var(--proposal-ink);
+  background: var(--proposal-wash);
+  border-left-style: dashed;
+}
+
+.provenance[data-provenance="policy"] {
+  color: var(--policy-ink);
+  background: var(--policy-wash);
+}
+
+.provenance[data-provenance="human"] {
+  color: var(--human-ink);
+  background: var(--human-wash);
+}
+
+.provenance[data-provenance="executed"] {
+  color: var(--executed-ink);
+  background: var(--executed-wash);
+  border-left-width: 6px;
+}
+
+.pending-action {
+  border: 1px solid #d8d2c4;
+  border-radius: 0.5rem;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  background: #fff;
+}
+
+.pending-action h3 {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+}
+
+.status-chip {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+
+.status-chip[data-status="pending"] {
+  color: var(--proposal-ink);
+  background: var(--proposal-wash);
+}
+
+.status-chip[data-status="approved"] {
+  color: var(--executed-ink);
+  background: var(--executed-wash);
+}
+
+.status-chip[data-status="rejected"] {
+  color: #8b2020;
+  background: #fbeaea;
+}
+
+.decision-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+button {
+  font: inherit;
+  border-radius: 0.375rem;
+  border: 1px solid #14202b;
+  background: #fff;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+button[data-intent="approve"] {
+  border-color: var(--executed-ink);
+  color: var(--executed-ink);
+}
+
+button[data-intent="reject"] {
+  border-color: #8b2020;
+  color: #8b2020;
+}
+
+.decision-error {
+  color: #8b2020;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.decision-result {
+  color: var(--executed-ink);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.edit-form {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.edit-form label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+textarea,
+input[type="text"] {
+  font: inherit;
+  width: 100%;
+  border: 1px solid #b6ada0;
+  border-radius: 0.375rem;
+  padding: 0.4rem 0.55rem;
+  box-sizing: border-box;
+}
+
+.args-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  margin-top: 0.5rem;
+}
+
+.args-table th,
+.args-table td {
+  border: 1px solid #e2ddd2;
+  padding: 0.3rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.args-table th {
+  width: 30%;
+  color: #4a5560;
+  font-weight: 600;
+}
+
+.hash {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  color: #4a5560;
+  word-break: break-all;
+}
+
+.transcript {
+  white-space: pre-wrap;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.muted {
+  color: #67727d;
+  font-size: 0.875rem;
+}
+
+.run-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.run-list li {
+  border: 1px solid #d8d2c4;
+  background: #fffdf8;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
 }

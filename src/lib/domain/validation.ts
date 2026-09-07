@@ -249,6 +249,7 @@ export const createAuditEventSchema = auditEventSchema
   });
 
 export const updateApprovalRequestSchema = z.object({
+  action: approvalActionSchema.optional(),
   status: z.enum(approvalStatuses).optional(),
   reviewedAt: timestampSchema.nullable().optional(),
   reviewer: z.string().min(1).max(200).nullable().optional(),

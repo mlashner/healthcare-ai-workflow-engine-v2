@@ -38,6 +38,16 @@ export function createCareTaskRepository(db: Database) {
       return row ? careTaskSchema.parse(row) : null;
     },
 
+    async listByAssignedTo(providerId: string): Promise<CareTask[]> {
+      const rows = await db
+        .select()
+        .from(careTasks)
+        .where(eq(careTasks.assignedTo, providerId))
+        .orderBy(desc(careTasks.createdAt));
+
+      return rows.map((row) => careTaskSchema.parse(row));
+    },
+
     async listByPatientId(patientId: string): Promise<CareTask[]> {
       const rows = await db
         .select()

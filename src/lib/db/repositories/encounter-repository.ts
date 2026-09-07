@@ -34,6 +34,16 @@ export function createEncounterRepository(db: Database) {
       return row ? encounterSchema.parse(row) : null;
     },
 
+    async listByProviderId(providerId: string): Promise<Encounter[]> {
+      const rows = await db
+        .select()
+        .from(encounters)
+        .where(eq(encounters.providerId, providerId))
+        .orderBy(desc(encounters.occurredAt));
+
+      return rows.map((row) => encounterSchema.parse(row));
+    },
+
     async listByPatientId(patientId: string): Promise<Encounter[]> {
       const rows = await db
         .select()
