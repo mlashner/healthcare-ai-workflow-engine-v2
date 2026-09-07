@@ -7,6 +7,7 @@ import {
   getReviewContext,
   resolveRequestClinician,
 } from "@/app/review-context";
+import { seedIds } from "@/lib/db/seed";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,12 @@ export default async function ReviewsPage() {
         </p>
         <form method="post" action="/api/clinician-session">
           <label htmlFor="clinicianId">Act as</label>
-          <select id="clinicianId" name="clinicianId" data-testid="clinician-select">
+          <select
+            id="clinicianId"
+            name="clinicianId"
+            data-testid="clinician-select"
+            defaultValue={seedIds.providers.blake}
+          >
             {providers.map((provider) => (
               <option key={provider.id} value={provider.id}>
                 {provider.name} — {provider.role}
@@ -50,8 +56,12 @@ export default async function ReviewsPage() {
     );
   }
 
-  const runs = await repos.agentRuns.listRecent(20);
+  const recent = await repos.agentRuns.listRecent(20);
+  const interviewRun = await repos.agentRuns.getById(seedIds.agentRuns.avaReview);
+  const others = recent.filter((run) => run.id !== seedIds.agentRuns.avaReview);
+  const runs = interviewRun ? [interviewRun, ...others] : others;
   const visible = runs.filter((run) => clinician.authorizedPatientIds.includes(run.patientId));
+  const providers = await repos.providers.list();
 
   return (
     <main className="review-shell">
@@ -62,7 +72,8 @@ export default async function ReviewsPage() {
       <h1>Clinician review</h1>
       <p className="muted">
         Reviewing as {clinician.name} ({clinician.actor.role}). Runs for patients outside your
-        scope are not listed and cannot be opened.
+        scope are not listed and cannot be opened. The 10-minute walkthrough uses the run tagged{" "}
+        <strong>interview demo</strong> (listed first).
       </p>
 
       {visible.length === 0 ? (
@@ -76,6 +87,14 @@ export default async function ReviewsPage() {
               <Link href={`/reviews/${run.id}`}>
                 {run.agentName} &middot; {run.status}
               </Link>
+              {run.id === seedIds.agentRuns.avaReview ? (
+                <>
+                  {" "}
+                  <span className="status-chip" data-status="pending" data-testid="interview-demo-badge">
+                    interview demo
+                  </span>
+                </>
+              ) : null}
               {" · "}
               <Link href={`/reviews/${run.id}/trace`}>Trace</Link>
               <p className="hash">
@@ -86,6 +105,25 @@ export default async function ReviewsPage() {
           ))}
         </ul>
       )}
+
+      <form method="post" action="/api/clinician-session">
+        <label htmlFor="clinicianId">Switch clinician</label>
+        <select
+          id="clinicianId"
+          name="clinicianId"
+          data-testid="clinician-select"
+          defaultValue={clinician.actor.id}
+        >
+          {providers.map((provider) => (
+            <option key={provider.id} value={provider.id}>
+              {provider.name} — {provider.role}
+            </option>
+          ))}
+        </select>
+        <div className="decision-controls">
+          <button type="submit">Continue</button>
+        </div>
+      </form>
     </main>
   );
 }

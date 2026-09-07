@@ -230,6 +230,23 @@ describe("listEvalScoreHistory", () => {
     const history = listEvalScoreHistory(directory);
     expect(history.map((point) => point.gitSha)).toEqual(["aaa", "bbb"]);
     expect(history[0]?.passRate).toBe(0.9);
+    expect(history[0]?.policyCompliance).toBe(0);
+    expect(
+      toScorePoint({
+        startedAt: "2026-09-07T03:00:00.000Z",
+        metrics: {
+          passRate: 1,
+          scenarioCount: 32,
+          policyCompliance: 0.94,
+          citationCorrectness: 0.92,
+          humanEscalationCorrectness: 0.96,
+        },
+      }),
+    ).toMatchObject({
+      policyCompliance: 0.94,
+      citationCorrectness: 0.92,
+      humanEscalationCorrectness: 0.96,
+    });
     expect(toScorePoint({ metrics: {} })).toBeNull();
   });
 });

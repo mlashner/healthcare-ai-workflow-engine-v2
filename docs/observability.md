@@ -32,6 +32,7 @@ The clinician trace skips `run_telemetry` events so the care narrative is not mi
 - average tool calls
 - model failure rate
 - evaluation pass rate over time, from `eval/results/*.json` (`latest.json` is skipped so the trend is not doubled)
+- latest-suite scenario count, policy compliance, citation accuracy, and escalation accuracy (read these off the screen; do not recite leftover numbers from a script)
 
 The page does not filter by clinician patient scope and does not render patient ids, names, dates of birth, or transcripts. In production this route needs an operator role, not a care-team login.
 

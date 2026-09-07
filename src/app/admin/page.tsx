@@ -126,6 +126,7 @@ export default async function AdminObservabilityPage() {
 }
 
 function EvalScoreSection({ history }: { history: EvalScorePoint[] }) {
+  const latestEval = history.at(-1);
   const maxRate = Math.max(1, ...history.map((point) => point.passRate));
 
   return (
@@ -141,6 +142,30 @@ function EvalScoreSection({ history }: { history: EvalScorePoint[] }) {
         </p>
       ) : (
         <>
+          {latestEval ? (
+            <div className="metric-grid">
+              <MetricCard
+                testId="eval-scenario-count"
+                label="Scenarios"
+                value={String(latestEval.scenarioCount)}
+              />
+              <MetricCard
+                testId="eval-policy-compliance"
+                label="Policy compliance"
+                value={formatPercent(latestEval.policyCompliance)}
+              />
+              <MetricCard
+                testId="eval-citation-correctness"
+                label="Citation accuracy"
+                value={formatPercent(latestEval.citationCorrectness)}
+              />
+              <MetricCard
+                testId="eval-escalation-correctness"
+                label="Escalation accuracy"
+                value={formatPercent(latestEval.humanEscalationCorrectness)}
+              />
+            </div>
+          ) : null}
           <ol className="eval-bars" data-testid="eval-score-history">
             {history.map((point) => (
               <li key={`${point.startedAt}-${point.gitSha}`}>

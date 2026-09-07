@@ -53,7 +53,7 @@ export type SeededReviewRun = {
 
 export async function seedReviewFixture(
   db: Database = getDb(),
-  options: { runId: string; patientId: string },
+  options: { runId: string; patientId: string; resetApprovals?: boolean },
 ): Promise<SeededReviewRun> {
   const repos = createRepositories(db);
   const { runId, patientId } = options;
@@ -143,6 +143,52 @@ export async function seedReviewFixture(
     });
   }
   if (
+    !events.some((event) => event.eventType === "tool_call" && event.toolName === "getRecentEncounters")
+  ) {
+    await repos.agentEvents.create({
+      agentRunId: runId,
+      eventType: "tool_call",
+      toolName: "getRecentEncounters",
+      input: { patientId },
+      timestamp: new Date("2026-09-02T15:00:03.200Z"),
+    });
+    await repos.agentEvents.create({
+      agentRunId: runId,
+      eventType: "tool_result",
+      toolName: "getRecentEncounters",
+      input: { patientId },
+      output: {
+        type: "tool_observation",
+        toolName: "getRecentEncounters",
+        ok: true,
+        output: { type: "untrusted_data", source: "getRecentEncounters", data: { patientId } },
+      },
+      timestamp: new Date("2026-09-02T15:00:03.400Z"),
+    });
+  }
+  if (!events.some((event) => event.eventType === "tool_call" && event.toolName === "getCarePlan")) {
+    await repos.agentEvents.create({
+      agentRunId: runId,
+      eventType: "tool_call",
+      toolName: "getCarePlan",
+      input: { patientId },
+      timestamp: new Date("2026-09-02T15:00:03.600Z"),
+    });
+    await repos.agentEvents.create({
+      agentRunId: runId,
+      eventType: "tool_result",
+      toolName: "getCarePlan",
+      input: { patientId },
+      output: {
+        type: "tool_observation",
+        toolName: "getCarePlan",
+        ok: true,
+        output: { type: "untrusted_data", source: "getCarePlan", data: { patientId } },
+      },
+      timestamp: new Date("2026-09-02T15:00:03.800Z"),
+    });
+  }
+  if (
     !events.some((event) => event.eventType === "tool_call" && event.toolName === "searchClinicalKnowledge")
   ) {
     await repos.agentEvents.create({
@@ -228,6 +274,15 @@ export async function seedReviewFixture(
             proposal: draft.proposal,
           },
         },
+      });
+    } else if (options.resetApprovals && already.status !== "pending") {
+      // Rehearsals approve this run. `npm run db:seed` restores the interview
+      // Approve click without wiping the append-only audit log.
+      await repos.approvalRequests.update(id, {
+        status: "pending",
+        reviewedAt: null,
+        reviewer: null,
+        reason: null,
       });
     }
 

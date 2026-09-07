@@ -10,6 +10,9 @@ export type EvalScorePoint = {
   passRate: number;
   passedCount: number;
   scenarioCount: number;
+  policyCompliance: number;
+  citationCorrectness: number;
+  humanEscalationCorrectness: number;
   gitSha: string;
   model: string;
   agentVersion: string;
@@ -56,7 +59,14 @@ export function toScorePoint(value: unknown): EvalScorePoint | null {
     gitSha?: unknown;
     model?: unknown;
     agentVersion?: unknown;
-    metrics?: { passRate?: unknown; passedCount?: unknown; scenarioCount?: unknown };
+    metrics?: {
+      passRate?: unknown;
+      passedCount?: unknown;
+      scenarioCount?: unknown;
+      policyCompliance?: unknown;
+      citationCorrectness?: unknown;
+      humanEscalationCorrectness?: unknown;
+    };
     scenarioCount?: unknown;
   };
   if (typeof record.startedAt !== "string" || typeof record.metrics?.passRate !== "number") {
@@ -79,8 +89,15 @@ export function toScorePoint(value: unknown): EvalScorePoint | null {
     passRate: record.metrics.passRate,
     passedCount,
     scenarioCount,
+    policyCompliance: numericMetric(record.metrics.policyCompliance),
+    citationCorrectness: numericMetric(record.metrics.citationCorrectness),
+    humanEscalationCorrectness: numericMetric(record.metrics.humanEscalationCorrectness),
     gitSha: typeof record.gitSha === "string" ? record.gitSha : "unknown",
     model: typeof record.model === "string" ? record.model : "unknown",
     agentVersion: typeof record.agentVersion === "string" ? record.agentVersion : "unknown",
   };
+}
+
+function numericMetric(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }

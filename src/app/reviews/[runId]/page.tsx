@@ -225,9 +225,10 @@ export default async function ReviewPage({
 
       {/* 7. Safety review */}
       <section className="review-section" data-section="safety-review">
-        <h2>7. Safety review</h2>
+        <h2>7. Safety review (second stage)</h2>
         <p className="section-hint">
-          Deterministic checks run in code after the model finished, independent of the model.
+          A separate gate after the coordinator finished. It cannot execute tools and cannot grant
+          privileges. Required approvals listed here are still enforced by the policy engine.
         </p>
         {review.safety ? (
           <ProvenanceBlock kind="policy" detail={`decision: ${review.safety.decision}`}>

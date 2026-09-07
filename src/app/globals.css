@@ -38,6 +38,13 @@ a {
   margin: 0 auto;
 }
 
+.architecture-flow {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  margin: 0.5rem 0 0;
+}
+
 /* Fictional-data and scope-of-use notice. */
 .demo-banner {
   border: 1px solid #b48b2f;

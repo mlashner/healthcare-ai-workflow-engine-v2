@@ -49,6 +49,16 @@ export async function seedFreshRun(): Promise<SeededReviewRun> {
   return seedReviewFixture(getDb(), { runId, patientId: seedIds.patients.ava });
 }
 
+/** Stable seeded run used by the 10-minute interview walkthrough. */
+export async function seedCanonicalInterviewRun(): Promise<SeededReviewRun> {
+  loadEnv();
+  return seedReviewFixture(getDb(), {
+    runId: seedIds.agentRuns.avaReview,
+    patientId: seedIds.patients.ava,
+    resetApprovals: true,
+  });
+}
+
 export function careTaskAction(run: SeededReviewRun) {
   const action = run.pendingActions.find((item) => item.toolName === "createCareTask");
   if (!action) {

@@ -200,6 +200,7 @@ export async function seedFictionalData(db = getDb()): Promise<void> {
   await seedReviewFixture(db, {
     runId: seedIds.agentRuns.avaReview,
     patientId: seedIds.patients.ava,
+    resetApprovals: true,
   });
 }
 
