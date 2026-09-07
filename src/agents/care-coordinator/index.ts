@@ -3,8 +3,8 @@ export { validateCareCoordinatorResult } from "./result";
 export { createCareCoordinatorRunner } from "./runner";
 export type { CareCoordinatorRunner } from "./runner";
 export {
+  careCoordinatorEncounterSchema,
   careCoordinatorResultSchema,
-  careCoordinatorRunInputSchema,
   careCoordinatorStepSchema,
 } from "./schemas";
 export type {

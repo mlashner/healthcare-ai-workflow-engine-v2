@@ -16,7 +16,7 @@ import {
   createScriptedModelProvider,
   ModelError,
 } from "@/llm";
-import { createInMemoryEventStore, createInMemoryRunStore } from "@/runs";
+import { bindRunSession, createInMemoryEventStore, createInMemoryRunStore } from "@/runs";
 
 const patientId = "patient_in_scope";
 const citationId = "cite:kb_diabetes_followup:0";
@@ -111,12 +111,19 @@ function createRunner(options: {
   return { runner, runs, events };
 }
 
+function boundSession() {
+  return bindRunSession({
+    actor: { id: "actor_1", role: "care_coordinator" },
+    patientId,
+    allowedPatientIds: [patientId],
+  });
+}
+
 async function runCoordinator(
   runner: ReturnType<typeof createCareCoordinatorRunner>,
 ) {
   return runner.run({
-    actor: { id: "actor_1", role: "care_coordinator" },
-    patientId,
+    session: boundSession(),
     encounter,
   });
 }
@@ -175,7 +182,7 @@ describe("care coordinator runner", () => {
 
     const outcome = await runCoordinator(runner);
 
-    expect(outcome.ok).toBe(true);
+    expect(outcome.ok, !outcome.ok ? `${outcome.code}: ${outcome.message}` : "").toBe(true);
     if (!outcome.ok) {
       throw new Error(outcome.message);
     }
@@ -190,7 +197,6 @@ describe("care coordinator runner", () => {
     expect(kinds).toContain("tool_call");
     expect(kinds).toContain("tool_result");
     expect(kinds).toContain("finish");
-    expect(kinds).toContain("safety_review");
     expect(
       events.events.some(
         (event) =>

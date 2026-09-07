@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { actorRoles, citationIdSchema, entityIdSchema, timestampSchema } from "@/lib/domain";
+import { citationIdSchema, entityIdSchema, timestampSchema } from "@/lib/domain";
+import type { BoundRunSession } from "@/runs/session";
 
 export const urgencyLevels = ["none", "low", "medium", "high", "urgent"] as const;
 export const evidenceKinds = ["retrieved", "inferred"] as const;
@@ -88,25 +89,19 @@ export const careCoordinatorStepSchema = z.discriminatedUnion("type", [
   finishStepSchema,
 ]);
 
-export const careCoordinatorRunInputSchema = z
+export const careCoordinatorEncounterSchema = z
   .object({
-    actor: z
-      .object({
-        id: entityIdSchema,
-        role: z.enum(actorRoles),
-      })
-      .strict(),
-    patientId: entityIdSchema,
-    encounter: z
-      .object({
-        id: entityIdSchema.optional(),
-        transcript: z.string().min(1).max(50_000),
-        occurredAt: timestampSchema.optional(),
-      })
-      .strict(),
-    agentRunId: entityIdSchema.optional(),
+    id: entityIdSchema.optional(),
+    transcript: z.string().min(1).max(50_000),
+    occurredAt: timestampSchema.optional(),
   })
   .strict();
+
+export type CareCoordinatorRunInput = {
+  session: BoundRunSession;
+  encounter: z.input<typeof careCoordinatorEncounterSchema>;
+  agentRunId?: string;
+};
 
 export type UrgencyLevel = (typeof urgencyLevels)[number];
 export type EvidenceKind = (typeof evidenceKinds)[number];
@@ -117,4 +112,3 @@ export type ProposedAction = z.output<typeof proposedActionSchema>;
 export type Uncertainty = z.output<typeof uncertaintySchema>;
 export type CareCoordinatorResult = z.output<typeof careCoordinatorResultSchema>;
 export type CareCoordinatorStep = z.output<typeof careCoordinatorStepSchema>;
-export type CareCoordinatorRunInput = z.output<typeof careCoordinatorRunInputSchema>;

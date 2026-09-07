@@ -1,16 +1,20 @@
 import { defaultCareCoordinatorBudgets, mergeBudgets, type RunBudgets } from "@/runs/budgets";
 import { createRunRateLimiter, type RunRateLimiter } from "@/runs/rate-limit";
+import { isBoundRunSession } from "@/runs/session";
 import type { EventStore, RunStore } from "@/runs/stores";
 import type { AgentRunOutcome } from "@/runs/types";
 import { reviewCareCoordinatorSafety } from "@/safety";
 import type { ModelProvider } from "@/llm";
-import type { ToolInvoker } from "../runner";
 
-import { createAgentRunner } from "../runner";
-import { buildCareCoordinatorUserMessage, CARE_COORDINATOR_SCHEMA_NAME, careCoordinatorSystemPrompt } from "./prompt";
+import { createAgentRunner, type ToolInvoker } from "../runner";
+import {
+  buildCareCoordinatorUserMessage,
+  CARE_COORDINATOR_SCHEMA_NAME,
+  careCoordinatorSystemPrompt,
+} from "./prompt";
 import { validateCareCoordinatorResult } from "./result";
 import {
-  careCoordinatorRunInputSchema,
+  careCoordinatorEncounterSchema,
   careCoordinatorStepSchema,
   type CareCoordinatorResult,
   type CareCoordinatorRunInput,
@@ -44,12 +48,18 @@ export function createCareCoordinatorRunner(deps: {
 
   return {
     async run(input: CareCoordinatorRunInput): Promise<AgentRunOutcome<CareCoordinatorResult>> {
-      const request = careCoordinatorRunInputSchema.parse(input);
+      if (!isBoundRunSession(input.session)) {
+        throw new Error("care coordinator runs require a bound session from bindRunSession");
+      }
+      const encounter = careCoordinatorEncounterSchema.parse(input.encounter);
       return runner.run({
-        actor: request.actor,
-        patientId: request.patientId,
-        agentRunId: request.agentRunId,
-        userContent: buildCareCoordinatorUserMessage(request),
+        actor: input.session.actor,
+        patientId: input.session.patientId,
+        agentRunId: input.agentRunId,
+        userContent: buildCareCoordinatorUserMessage({
+          patientId: input.session.patientId,
+          encounter,
+        }),
       });
     },
   };

@@ -13,6 +13,8 @@ export {
 export type { BudgetCode, BudgetState, RunBudgets } from "./budgets";
 export { createRunRateLimiter } from "./rate-limit";
 export type { RunRateLimiter } from "./rate-limit";
+export { bindRunSession, isBoundRunSession } from "./session";
+export type { BoundRunSession } from "./session";
 export {
   createInMemoryEventStore,
   createInMemoryRunStore,

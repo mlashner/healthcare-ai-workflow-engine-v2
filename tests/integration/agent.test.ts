@@ -9,10 +9,9 @@ import { createRepositories } from "@/lib/db/repositories";
 import { agentRuns, careTasks, encounters, patients, providers } from "@/lib/db/schema";
 import { createScriptedModelProvider } from "@/llm";
 import type { ModelMessage } from "@/llm";
-import { fictionalKnowledgeCorpus } from "@/retrieval/corpus";
+import { bindRunSession } from "@/runs";
 import { formatCitationId } from "@/retrieval/citations";
-import { createLexicalEmbedder } from "@/retrieval/embedder";
-import { ingestKnowledgeCorpus } from "@/retrieval/ingest";
+import { seedFictionalData } from "@/lib/db/seed";
 import { createToolRegistry } from "@/tools/catalog";
 import { createToolGateway } from "@/tools/gateway";
 
@@ -26,11 +25,7 @@ const gateway = createToolGateway({
 const citationId = formatCitationId("kb_diabetes_followup", 0);
 
 beforeAll(async () => {
-  await ingestKnowledgeCorpus(fictionalKnowledgeCorpus, {
-    documents: repos.clinicalDocuments,
-    chunks: repos.documentChunks,
-    embedder: createLexicalEmbedder(),
-  });
+  await seedFictionalData(db);
 });
 
 afterEach(async () => {
@@ -179,8 +174,11 @@ describe("care coordinator integration", () => {
     });
 
     const outcome = await runner.run({
-      actor: { id: provider.id, role: "care_coordinator" },
-      patientId: patient.id,
+      session: bindRunSession({
+        actor: { id: provider.id, role: "care_coordinator" },
+        patientId: patient.id,
+        allowedPatientIds: [patient.id],
+      }),
       agentRunId: testId("run"),
       encounter: {
         id: encounter.id,
@@ -189,7 +187,7 @@ describe("care coordinator integration", () => {
       },
     });
 
-    expect(outcome.ok).toBe(true);
+    expect(outcome.ok, !outcome.ok ? `${outcome.code}: ${outcome.message}` : "").toBe(true);
     if (!outcome.ok) {
       throw new Error(outcome.message);
     }
@@ -251,8 +249,11 @@ describe("care coordinator integration", () => {
     });
 
     const outcome = await runner.run({
-      actor: { id: provider.id, role: "care_coordinator" },
-      patientId: patient.id,
+      session: bindRunSession({
+        actor: { id: provider.id, role: "care_coordinator" },
+        patientId: patient.id,
+        allowedPatientIds: [patient.id],
+      }),
       agentRunId: testId("run"),
       encounter: {
         id: encounter.id,
