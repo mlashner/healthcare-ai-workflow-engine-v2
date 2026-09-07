@@ -125,6 +125,28 @@ describe("validateCareCoordinatorResult", () => {
     }
   });
 
+  it("never marks write actions as executed during the agent loop", () => {
+    const check = validateCareCoordinatorResult(
+      result({
+        proposedActions: [
+          {
+            type: "create_care_task",
+            summary: "Draft a follow-up.",
+            rationale: "Human review required.",
+            citationIds: [citationId],
+            executedInRun: true,
+          },
+        ],
+      }),
+      { retrievedCitationIds: new Set([citationId]), successfulTools: ["createCareTask"] },
+    );
+
+    expect(check.ok).toBe(true);
+    if (check.ok) {
+      expect(check.result.proposedActions[0]?.executedInRun).toBe(false);
+    }
+  });
+
   it("marks a finish uncertain when nothing was retrieved", () => {
     const check = validateCareCoordinatorResult(
       result({

@@ -79,7 +79,7 @@ function citedResult(): CareCoordinatorResult {
         summary: "Draft a follow-up care task for human review.",
         rationale: "Keep the action reversible and non-autonomous.",
         citationIds: [citationId],
-        executedInRun: true,
+        executedInRun: false,
       },
     ],
     requiresHumanReview: true,
@@ -193,7 +193,7 @@ describe("care coordinator integration", () => {
     expect(outcome.result.evidence.some((item) => item.kind === "retrieved")).toBe(true);
     expect(outcome.result.evidence.some((item) => item.kind === "inferred")).toBe(true);
     expect(outcome.result.requiresHumanReview).toBe(true);
-    expect(outcome.result.proposedActions[0]?.executedInRun).toBe(true);
+    expect(outcome.result.proposedActions[0]?.executedInRun).toBe(false);
 
     const persisted = await repos.agentRuns.getById(outcome.runId);
     expect(persisted?.status).toBe("completed");
@@ -212,15 +212,13 @@ describe("care coordinator integration", () => {
     expect(events.some((event) => event.eventType === "finish")).toBe(true);
 
     const tasks = await repos.careTasks.listByPatientId(patient.id);
-    expect(tasks).toHaveLength(1);
-    expect(tasks[0]).toMatchObject({
-      status: "draft",
-      type: "follow_up",
-    });
+    expect(tasks).toHaveLength(0);
 
     const audits = await repos.auditEvents.listByAgentRunId(outcome.runId);
-    expect(audits.every((event) => event.outcome === "executed")).toBe(true);
-    expect(audits).toHaveLength(5);
+    expect(audits.some((event) => event.toolName === "createCareTask" && event.outcome === "denied")).toBe(
+      true,
+    );
+    expect(audits.filter((event) => event.outcome === "executed")).toHaveLength(4);
   });
 
   it("records a denied out-of-scope tool call and still finishes with uncertainty", async () => {

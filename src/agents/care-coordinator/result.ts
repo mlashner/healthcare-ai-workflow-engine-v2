@@ -107,7 +107,7 @@ export function validateCareCoordinatorResult(
     evidence: result.evidence.map((item) => ({ ...item })),
     proposedActions: result.proposedActions.map((action) => ({
       ...action,
-      executedInRun: actionExecutedInRun(action.type, context.successfulTools),
+      executedInRun: false,
     })),
     uncertainty: {
       isUncertain: result.uncertainty.isUncertain,
@@ -136,17 +136,4 @@ export function validateCareCoordinatorResult(
   }
 
   return { ok: true, result: next, notes };
-}
-
-function actionExecutedInRun(type: CareCoordinatorResult["proposedActions"][number]["type"], tools: string[]): boolean {
-  if (type === "create_care_task") {
-    return tools.includes("createCareTask");
-  }
-  if (type === "draft_patient_message") {
-    return tools.includes("draftPatientMessage");
-  }
-  if (type === "request_human_approval") {
-    return tools.includes("requestHumanApproval");
-  }
-  return false;
 }

@@ -74,3 +74,12 @@ export function getToolPolicy(toolName: string): ToolPolicy | undefined {
 export function isToolName(value: string): value is ToolName {
   return (toolNames as readonly string[]).includes(value);
 }
+
+export const inLoopToolNames = toolNames.filter(
+  (name) => toolPolicies[name].risk === "read",
+) as readonly ToolName[];
+
+export function isInLoopTool(toolName: string): boolean {
+  const policy = getToolPolicy(toolName);
+  return policy?.risk === "read";
+}

@@ -42,6 +42,15 @@ export function authorizeToolCall(
     };
   }
 
+  const phase = context.phase ?? "agent_loop";
+  if (phase === "agent_loop" && policy.risk !== "read") {
+    return {
+      allowed: false,
+      code: "POLICY_DENIED",
+      reason: `${toolName} cannot execute during the agent loop`,
+    };
+  }
+
   return { allowed: true };
 }
 
@@ -53,14 +62,20 @@ export function extractPatientIds(value: unknown): string[] {
   const record = value as Record<string, unknown>;
   const ids: string[] = [];
 
-  if (typeof record.patientId === "string" && record.patientId.length > 0) {
-    ids.push(record.patientId);
+  for (const key of ["patientId", "patient_id", "targetPatientId"] as const) {
+    const value = record[key];
+    if (typeof value === "string" && value.length > 0) {
+      ids.push(value);
+    }
   }
 
   if (record.payload && typeof record.payload === "object" && record.payload !== null) {
     const payload = record.payload as Record<string, unknown>;
-    if (typeof payload.patientId === "string" && payload.patientId.length > 0) {
-      ids.push(payload.patientId);
+    for (const key of ["patientId", "patient_id", "targetPatientId"] as const) {
+      const value = payload[key];
+      if (typeof value === "string" && value.length > 0) {
+        ids.push(value);
+      }
     }
   }
 

@@ -114,7 +114,7 @@ describe("tool gateway integration", () => {
     expect(audit[0]?.outcome).toBe("denied");
   });
 
-  it("creates a draft care task bound to the scoped patient", async () => {
+  it("refuses to persist a care task during the agent loop", async () => {
     const { patient, context } = await createScopedRun();
 
     const result = await gateway.invoke(
@@ -125,6 +125,26 @@ describe("tool gateway integration", () => {
         description: "Fictional follow-up from the tool layer",
       },
       context,
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("POLICY_DENIED");
+    }
+    expect(await repos.careTasks.listByPatientId(patient.id)).toEqual([]);
+  });
+
+  it("creates a draft care task bound to the scoped patient", async () => {
+    const { patient, context } = await createScopedRun();
+
+    const result = await gateway.invoke(
+      "createCareTask",
+      {
+        patientId: patient.id,
+        type: "follow_up",
+        description: "Fictional follow-up from the tool layer",
+      },
+      { ...context, phase: "post_approval" },
     );
 
     expect(result.ok).toBe(true);
@@ -151,7 +171,7 @@ describe("tool gateway integration", () => {
         payload: { patientId: patient.id, specialty: "endocrinology" },
         reason: "Fictional demo referral",
       },
-      context,
+      { ...context, phase: "post_approval" },
     );
 
     expect(result.ok).toBe(true);
@@ -234,7 +254,7 @@ describe("tool gateway integration", () => {
         purpose: "lab follow-up",
         talkingPoints: ["This is a fictional draft.", "It must not be sent automatically."],
       },
-      context,
+      { ...context, phase: "post_approval" },
     );
 
     expect(result.ok).toBe(true);

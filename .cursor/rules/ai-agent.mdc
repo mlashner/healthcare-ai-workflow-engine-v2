@@ -12,7 +12,7 @@ The coordinator may propose `think` | `tool_call` | `finish` only. Decode into s
 
 - Tools come from a static catalog. Allowlists live in policy, not in the prompt.
 - The loop must enforce max steps, max tokens, and max repeats of the same tool. Exhausted budget ends the run as a bounded failure, not an implicit success.
-- Read/draft tools may execute in-loop after the gateway. Consequential tools (`propose_referral`, `schedule_outreach`, `notify_care_team`) become `PendingAction` records — never execute inside the loop.
+- Only read tools may execute in-loop after the gateway. Draft and consequential tools (`createCareTask`, `draftPatientMessage`, `requestHumanApproval`) are recorded as proposals on `finish` and become `PendingAction` records after safety review — never persist inside the loop.
 
 ## Failures and uncertainty
 

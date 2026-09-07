@@ -200,6 +200,7 @@ export function createAgentRunner<TResult>(deps: {
               agentName: deps.definition.name,
               patientScope: request.patientId,
               agentRunId: run.id,
+              phase: "agent_loop",
             });
 
             const observation = toObservation(invocation);

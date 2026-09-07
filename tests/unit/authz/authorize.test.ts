@@ -60,6 +60,21 @@ describe("authorizeToolCall", () => {
     expect(decision).toMatchObject({ allowed: false, code: "POLICY_DENIED" });
   });
 
+  it("denies write tools during the agent loop and allows them after approval", () => {
+    const write = {
+      patientId: "patient_fictional_ava",
+      type: "follow_up" as const,
+      description: "Fictional",
+    };
+    expect(authorizeToolCall(scoped, "createCareTask", write)).toMatchObject({
+      allowed: false,
+      code: "POLICY_DENIED",
+    });
+    expect(
+      authorizeToolCall({ ...scoped, phase: "post_approval" }, "createCareTask", write),
+    ).toEqual({ allowed: true });
+  });
+
   it("does not let args.agentName replace the bound agent identity", () => {
     const decision = authorizeToolCall(
       { ...scoped, agentName: "safety_reviewer" },
