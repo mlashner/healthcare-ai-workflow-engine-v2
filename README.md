@@ -8,7 +8,7 @@ Language models are reached only through the `ModelProvider` port. See [`docs/mo
 
 Each agent run records allowlisted AI metrics (model, tokens, cost, latency, tool counts) with no chart text. The operator view is [`/admin`](http://localhost:3000/admin). See [`docs/observability.md`](docs/observability.md) for what is captured and which production metrics to add next.
 
-A 10-minute click-through (home → Ava Nguyen review → approval → trace → eval) is in [`docs/interview-demo.md`](docs/interview-demo.md).
+A 10-minute click-through (home → Ava Nguyen review → approval → trace → eval) is in [`docs/interview-demo.md`](docs/interview-demo.md). Main control-plane decisions while building with Cursor: [`docs/ai-development-log.md`](docs/ai-development-log.md).
 
 A local MCP server exposes eval, traces, and knowledge search to Cursor. See [`docs/mcp.md`](docs/mcp.md). After reload, ask: *Run the latest evaluation suite and tell me which failures increased compared with the previous run.*
 
