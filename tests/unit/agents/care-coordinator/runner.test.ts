@@ -483,5 +483,16 @@ describe("care coordinator runner", () => {
       expect(source, file).not.toMatch(/drizzle-orm/);
       expect(source, file).not.toMatch(/authorizeToolCall/);
     }
+
+    const agentSources = [
+      "src/agents/runner.ts",
+      "src/agents/care-coordinator/runner.ts",
+    ];
+    for (const file of agentSources) {
+      const source = readFileSync(join(process.cwd(), file), "utf8");
+      expect(source, file).not.toMatch(/openai-compatible/);
+      expect(source, file).not.toMatch(/createModelProvider/);
+      expect(source, file).not.toMatch(/createOpenAiCompatibleProvider/);
+    }
   });
 });

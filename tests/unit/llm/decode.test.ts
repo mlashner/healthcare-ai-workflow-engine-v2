@@ -37,6 +37,8 @@ describe("createScriptedModelProvider", () => {
       schemaName: "TestStep",
     });
     expect(first.content).toEqual({ type: "think", thought: "one" });
+    expect(first.finishReason).toBe("stop");
+    expect(first.usage.outputTokens).toBeGreaterThan(0);
 
     await expect(
       provider.complete({ messages: [], schemaName: "TestStep" }),

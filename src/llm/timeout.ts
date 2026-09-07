@@ -24,12 +24,16 @@ export function createTimedModelProvider(
   timeoutMs: number,
 ): ModelProvider {
   return {
+    metadata: provider.metadata,
     complete(request) {
       return withTimeout(
         provider.complete(request),
         timeoutMs,
         `model provider timed out after ${timeoutMs}ms`,
       );
+    },
+    stream(request) {
+      return provider.stream(request);
     },
   };
 }

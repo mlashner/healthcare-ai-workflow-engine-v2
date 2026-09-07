@@ -4,6 +4,8 @@ Demonstration healthcare care-coordination platform. **Fictional data only.** No
 
 This repository implements Architecture B from [`docs/architecture.md`](docs/architecture.md): a constrained agent with a deterministic control plane. The initial application is the control-plane shell only — no AI features yet.
 
+Language models are reached only through the `ModelProvider` port. See [`docs/model-providers.md`](docs/model-providers.md) for structured generation, streaming, cost metadata, and the tradeoff between vendor features and a portable adapter.
+
 ## Stack
 
 TypeScript, Next.js, PostgreSQL with pgvector, Drizzle ORM, Zod, Vitest, Playwright. Local PostgreSQL runs in Docker.

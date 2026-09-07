@@ -3,6 +3,7 @@ export const modelErrorCodes = [
   "EMPTY_RESPONSE",
   "TIMEOUT",
   "SCHEMA_FAILURE",
+  "RATE_LIMITED",
 ] as const;
 
 export type ModelErrorCode = (typeof modelErrorCodes)[number];

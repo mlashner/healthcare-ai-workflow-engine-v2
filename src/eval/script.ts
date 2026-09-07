@@ -1,6 +1,7 @@
 import {
   createScriptedModelProvider,
   isModelError,
+  usageFromContent,
   type ModelMessage,
   type ModelProvider,
   type ScriptedStep,
@@ -43,20 +44,31 @@ export function createEvalModelProvider(script: ScriptedStep[]): ModelProvider {
   const inner = createScriptedModelProvider(script);
   let lastFinish: unknown;
 
-  return {
-    async complete(request) {
-      try {
-        const completion = await inner.complete(request);
-        if (isFinishStep(completion.content)) {
-          lastFinish = completion.content;
-        }
-        return completion;
-      } catch (error) {
-        if (lastFinish !== undefined && isEmptyScriptError(error)) {
-          return { content: lastFinish };
-        }
-        throw error;
+  const complete: ModelProvider["complete"] = async (request) => {
+    try {
+      const completion = await inner.complete(request);
+      if (isFinishStep(completion.content)) {
+        lastFinish = completion.content;
       }
+      return completion;
+    } catch (error) {
+        if (lastFinish !== undefined && isEmptyScriptError(error)) {
+          return {
+            content: lastFinish,
+            usage: usageFromContent(request.messages, lastFinish),
+            finishReason: "stop",
+          };
+        }
+      throw error;
+    }
+  };
+
+  return {
+    metadata: inner.metadata,
+    complete,
+    async *stream(request) {
+      const completion = await complete(request);
+      yield { type: "completed", completion };
     },
   };
 }
